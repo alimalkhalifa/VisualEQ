@@ -1,30 +1,34 @@
 import * as THREE from 'three'
-import store from '../store'
-import {
-  addSpawn
-} from '../store/actions'
+import { store } from '../store'
+import { changeScene } from '../store/actions'
 import FlyCamera from './flyCamera'
+import Selector from './selector'
+import InfoBox from './infoBox';
 
 export default class Scene {
   constructor(zoneShortName) {
     this.zoneShortName = zoneShortName
-    this.infoBox = document.getElementById('info-box')
+    this.infoBox = null
     this.scene = null
     this.camera = null
+    this.selector = null
     this.ambientLight = null
     this.clock = null
     this.raycaster = null
     this.zoneInfo = {}
     this.renderer = null
-    this.selectedObject = null
     this.Init()
   }
 
   Init() {
+    store.dispatch(changeScene(this))
+    this.infoBox = new InfoBox()
     this.scene =  new THREE.Scene()
     this.camera = new FlyCamera()
-    this.scene.add(this.camera.camera)
+    this.scene.add(this.camera.object)
     this.camera.updateCameraRotation()
+
+    this.selector = new Selector()
 
     this.ambientLight = new THREE.AmbientLight( 0xffffff, 1 );
     this.scene.add( this.ambientLight );
@@ -60,7 +64,7 @@ export default class Scene {
       this.zoneInfo = res[0]
       //scene.fog = new THREE.Fog(new Three.COLOR(zoneInfo.fog_red, zoneInfo.fog_green, zoneInfo.fog_blue).getHEX(), zoneInfo.fog_minclip, zoneInfo.fog_maxclip)
       if (goToHome) {
-        this.camera.camera.position.set(this.zoneInfo.safe_y, this.zoneInfo.safe_x, this.zoneInfo.safe_z+2)
+        this.camera.object.position.set(this.zoneInfo.safe_y, this.zoneInfo.safe_x, this.zoneInfo.safe_z+2)
       }
       this.getSpawns()
     })
@@ -171,10 +175,9 @@ export default class Scene {
 
   render() {
     let delta = this.clock.getDelta()
-    this.renderer.render(this.scene, this.camera.camera)
-    this.camera.updateCamera(this.camera.camera, this.camera.cameraMovementInput, delta)
+    this.renderer.render(this.scene, this.camera.object)
+    this.camera.updateCamera(this.camera.object, this.camera.cameraMovementInput, delta)
     this.lockPointer()
-    this.raycastSelect()
     this.consumeMouseJustState()
   }
 
@@ -196,7 +199,7 @@ export default class Scene {
   }
 
   onViewportResize() {
-    this.camera.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.object.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize( window.innerWidth, window.innerHeight );
   }
@@ -214,18 +217,6 @@ export default class Scene {
       this.camera.mouseLocked = true
     } else {
       this.camera.mouseLocked = false
-    }
-  }
-
-  raycastSelect() {
-    if (this.camera.mouseJustState[0] && !this.camera.mouseLocked) {
-      this.raycaster.setFromCamera(this.camera.mousePos, this.camera.camera)
-      let intersections = this.raycaster.intersectObjects(this.scene.children, true)
-      if (intersections.length > 0) {
-        this.changeSelectedObject(intersections[0].object)
-      } else {
-        this.nullSelectedObject()
-      }
     }
   }
   
@@ -314,57 +305,6 @@ export default class Scene {
     this.camera.cameraPitch -= mouseMoveY * this.camera.cameraRotationSpeed
     this.camera.cameraPitch = Math.max(-(Math.PI/2), Math.min( (Math.PI/2), this.camera.cameraPitch))
     this.camera.updateCameraRotation()
-  }
-
-  nullSelectedObject() {
-    if (this.selectedObject !== null) {
-      this.selectedObject.material = this.selectedObject.userData.defaultMaterial
-    }
-    this.infoBox.style.visibility = "hidden"
-  }
-  
-  changeSelectedObject(object) {
-    this.nullSelectedObject()
-    if (object.userData.selectable) {
-      this.selectedObject = object
-      this.selectedObject.userData.defaultMaterial = this.selectedObject.material
-      this.selectedObject.material = new THREE.MeshBasicMaterial({color: 0x00FF00})
-      if (object.userData.type === "SpawnPoint") {
-        let spawn = object.userData.spawnInfo
-        this.infoBox.innerHTML = `
-          <div class="card text-white bg-dark">
-            <div class="card-body">
-              <h5 class="card-title">Spawn</h5>
-              <h6 class="card-subtitle mb2 text-muted">ID ${spawn.id}</h6>
-            </div>
-          </div>
-          <div class="card text-white bg-dark">
-            <div class="card-body">
-              <h5 class="card-title">Position</h5>
-              <div class="card-text">
-                X: ${spawn.x}<br/>
-                Y: ${spawn.y}<br/>
-                Z: ${spawn.z}<br/>
-                H: ${spawn.heading}<br/>
-              </div>
-            </div>
-          </div>
-          <div class="card text-white bg-dark">
-            <div class="card-body">
-              <h5 class="card-title">Attributes</h5>
-              <div class="card-text">
-                Enabled: ${spawn.enabled}<br/>
-                Pathgrid: ${spawn.pathgrid}</br>
-                RespawnTime: ${spawn.respawntime}</br>
-                Variance: ${spawn.variance}<br/>
-              </div>
-            </div>
-          </div>
-        `
-        this.getSpawnGroup(spawn.spawngroupID)
-      }
-      this.infoBox.style.visibility = "visible"
-    }
   }
 
   getSpawnGroup(id) {

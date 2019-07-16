@@ -4,7 +4,7 @@ import {
   addSpawn
 } from './store/actions'
 
-//store.subscribe(() => console.log(store.getState()))
+store.subscribe(() => console.log(store.getState()))
 
 //store.dispatch(addSpawn('test'))
 

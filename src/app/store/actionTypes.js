@@ -1,1 +1,3 @@
 export const ADD_SPAWN = 'ADD_SPAWN'
+export const CHANGE_SCENE = 'CHANGE_SCENE'
+export const UPDATE_SELECTED = 'UPDATE_SELECTED'

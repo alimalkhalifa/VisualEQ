@@ -2,8 +2,8 @@ import * as THREE from 'three'
 
 export default class Camera {
   constructor() {
-    this.camera = new THREE.PerspectiveCamera( 55, window.innerWidth / window.innerHeight, 1, 1000 );
-    this.camera.up.set(0,0,1);
+    this.object = new THREE.PerspectiveCamera( 55, window.innerWidth / window.innerHeight, 1, 1000 );
+    this.object.up.set(0,0,1);
     this.cameraSpeed = 50
     this.doubleSpeed = false
     this.cameraRotationSpeed = 0.002
@@ -28,7 +28,7 @@ export default class Camera {
     quat.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2)
     quat.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.cameraRotation))
     quat.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), this.cameraPitch))
-    this.camera.quaternion.copy(quat)
+    this.object.quaternion.copy(quat)
   }
 
   updateCamera(camera, input, delta) {
@@ -52,7 +52,7 @@ export default class Camera {
       velocity.y -= 1
     }
   
-    velocity.multiplyScalar(delta * this.cameraSpeed * (this.doubleSpeed ? 2 : 1)).applyQuaternion(this.camera.quaternion)
-    this.camera.position.add(velocity)
+    velocity.multiplyScalar(delta * this.cameraSpeed * (this.doubleSpeed ? 2 : 1)).applyQuaternion(this.object.quaternion)
+    this.object.position.add(velocity)
   }
 }

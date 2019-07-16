@@ -10,6 +10,7 @@
   "dependencies": {
     "express": "^4.17.1",
     "mysql": "^2.17.1",
+    "pako": "^1.0.10",
     "parcel": "^1.12.3",
     "three": "^0.106.2",
     "three-obj-loader": "^1.1.3",

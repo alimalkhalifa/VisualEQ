@@ -19,11 +19,4 @@ app.use('/', express.static('dist'))
 
 app.listen(port, () => {
   console.log(`Server started on port ${port}`)
-  database.connect(err => {
-    if (err) {
-      console.error(`Error connecting to database: ${err.stack}`)
-      return
-    }
-    console.log(`Connected to database on thread ${database.threadId}`)
-  })
 })

@@ -1,7 +1,7 @@
 var express = require('express')
 var route = express.Router()
-var database = require('./database.js')
-var loadS3D = require('./s3d.js')
+var database = require('../database.js')
+var loadS3D = require('../loaders/s3d.js')
 
 route.use('/file', express.static('zones'))
 

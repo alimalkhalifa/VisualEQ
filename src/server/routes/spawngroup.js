@@ -1,6 +1,6 @@
 var express = require('express')
 var route = express.Router()
-var database = require('./database.js')
+var database = require('../database.js')
 
 route.get('/group/:id', (req, res) => {
   database.getConnection((err, connection) => {

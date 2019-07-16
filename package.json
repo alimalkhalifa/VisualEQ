@@ -4,7 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "dev": "parcel build src/index.html && node index.js",
+    "dev": "parcel build src/app/index.html && node src/server/index.js",
     "nodemon": "nodemon -w src --ext js,html --exec yarn dev"
   },
   "dependencies": {
@@ -12,6 +12,7 @@
     "mysql": "^2.17.1",
     "pako": "^1.0.10",
     "parcel": "^1.12.3",
+    "redux": "^4.0.4",
     "three": "^0.106.2"
   }
 }

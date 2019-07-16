@@ -5,7 +5,8 @@
   "license": "MIT",
   "scripts": {
     "dev": "parcel build src/app/index.html && node src/server/index.js",
-    "nodemon": "nodemon -w src --ext js,html --exec yarn dev"
+    "nodemon": "nodemon -w src --ext js,html --exec yarn dev",
+    "test": "npx nodemon -w test --target node --bundle-node-modules --exec \"parcel build --out-dir test-build test/index.js && node test-build/index.js\""
   },
   "dependencies": {
     "express": "^4.17.1",

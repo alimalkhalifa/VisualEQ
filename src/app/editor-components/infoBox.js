@@ -58,6 +58,74 @@ export default class InfoBox {
         </div>
       </div>
     `
-    //this.getSpawnGroup(spawn.spawngroupID)
+    this.getSpawnGroup(spawn.spawngroupID)
+  }
+  getSpawnGroup(id) {
+    fetch(`/spawngroup/group/${id}`).then(res => {
+      return res.json()
+    }).then(res => {
+      let group = res[0]
+      let card = document.createElement("div")
+      card.setAttribute("class", "card text-white bg-dark")
+      card.innerHTML = `
+        <div class="card-body">
+          <h5 class="card-title">Spawngroup</h5>
+          <h6 class="card-subtitle mb2 text-muted">ID ${group.id}</h6>
+          <div class="card-text">
+            Name: ${group.name}<br/>
+            Spawn Limit: ${group.spawn_limit}<br/>
+            Distance: ${group.dist}<br/>
+            Max X: ${group.max_x}<br/>
+            Min X: ${group.min_x}<br/>
+            Max Y: ${group.max_y}<br/>
+            Min Y: ${group.min_y}<br/>
+            Delay: ${group.delay}<br/>
+            Minimum Delay: ${group.mindelay}<br/>
+            Despawn: ${group.despawn}<br/>
+            Despawn Timer: ${group.despawn_timer}<br/>
+          </div>
+        </div>
+      `
+      this.domElement.appendChild(card)
+      this.getSpawnEntries(id)
+    })
+  }
+
+  getSpawnEntries(id) {
+    fetch(`/spawngroup/entry/${id}`).then(res => {
+      return res.json()
+    }).then(res => {
+      for (let entry of res) {
+        let card = document.createElement("div")
+        card.setAttribute("class", "card text-white bg-dark")
+        card.innerHTML = `
+        <h5 class="card-title">Spawn Entry</h5>
+        <div class="card-text">
+          npcID: ${entry.npcID}<br/>
+          Chance: ${entry.chance}<br/>
+        </div>
+        `
+        this.domElement.appendChild(card)
+        this.getNPC(entry.npcID)
+      }
+    })
+  }
+
+  getNPC(id) {
+    fetch(`/npc/${id}`).then(res => {
+      return res.json()
+    }).then(res => {
+      let npc = res[0]
+      let card = document.createElement("div")
+      card.setAttribute("class", "card text-white bg-dark")
+      card.innerHTML = `
+      <h5 class="card-title">NPC</h5>
+      <h6 class="card-subtitle mb2 text-muted">ID ${npc.id}</h6>
+      <div class="card-text">
+        Name: ${npc.name}<br/>
+      </div>
+      `
+      this.domElement.appendChild(card)
+    })
   }
 }

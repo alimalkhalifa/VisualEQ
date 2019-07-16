@@ -4,17 +4,22 @@ import { updateSelected } from '../store/actions';
 
 export default class Selector {
   constructor() {
+    this.mousePos = new THREE.Vector2()
     this.connect()
   }
 
   connect() {
     document.addEventListener('mousedown', this.onMouseDown.bind(this))
+    document.addEventListener('mousemove', this.onMouseMove.bind(this))
   }
 
   onMouseDown() {
+    if ( event.target !== store.getState().editor.scene.renderer.domElement ) {
+      return
+    }
     if (event.button !== 0) return
     let scene = store.getState().editor.scene
-    scene.raycaster.setFromCamera(scene.camera.mousePos, scene.camera.object)
+    scene.raycaster.setFromCamera(this.mousePos, scene.camera.object)
     let intersections = scene.raycaster.intersectObjects(scene.scene.children, true)
     if (intersections.length > 0) {
       for (let i of intersections) {
@@ -25,6 +30,11 @@ export default class Selector {
       }
     }
     this.nullSelectedObject()
+  }
+
+  onMouseMove(event) {
+    this.mousePos.x = ( event.clientX / window.innerWidth ) * 2 - 1
+    this.mousePos.y = - ( event.clientY / window.innerHeight ) * 2 + 1
   }
 
   nullSelectedObject() {
@@ -44,49 +54,3 @@ export default class Selector {
     }
   }
 }
-
-
-
-/*changeSelectedObject(object) {
-  this.nullSelectedObject()
-  if (object.userData.selectable) {
-    this.selectedObject = object
-    this.selectedObject.userData.defaultMaterial = this.selectedObject.material
-    this.selectedObject.material = new THREE.MeshBasicMaterial({color: 0x00FF00})
-    if (object.userData.type === "SpawnPoint") {
-      let spawn = object.userData.spawnInfo
-      this.infoBox.innerHTML = `
-        <div class="card text-white bg-dark">
-          <div class="card-body">
-            <h5 class="card-title">Spawn</h5>
-            <h6 class="card-subtitle mb2 text-muted">ID ${spawn.id}</h6>
-          </div>
-        </div>
-        <div class="card text-white bg-dark">
-          <div class="card-body">
-            <h5 class="card-title">Position</h5>
-            <div class="card-text">
-              X: ${spawn.x}<br/>
-              Y: ${spawn.y}<br/>
-              Z: ${spawn.z}<br/>
-              H: ${spawn.heading}<br/>
-            </div>
-          </div>
-        </div>
-        <div class="card text-white bg-dark">
-          <div class="card-body">
-            <h5 class="card-title">Attributes</h5>
-            <div class="card-text">
-              Enabled: ${spawn.enabled}<br/>
-              Pathgrid: ${spawn.pathgrid}</br>
-              RespawnTime: ${spawn.respawntime}</br>
-              Variance: ${spawn.variance}<br/>
-            </div>
-          </div>
-        </div>
-      `
-      this.getSpawnGroup(spawn.spawngroupID)
-    }
-    this.infoBox.style.visibility = "visible"
-  }
-}*/

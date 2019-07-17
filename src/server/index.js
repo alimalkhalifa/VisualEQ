@@ -2,7 +2,6 @@ const express = require('express')
 const app = express()
 const port = 5000
 
-const database = require('./database')
 const zone = require('./routes/zone')
 const spawngroup = require('./routes/spawngroup')
 const npc = require('./routes/npc')

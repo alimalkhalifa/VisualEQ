@@ -7,8 +7,16 @@ route.use('/file', express.static('zones'))
 
 route.get('/s3d/:shortname', (req, res) => {
   console.log("Got S3D request")
-  loadS3D(`./zones/${req.params.shortname}.s3d`, zone => {
+  loadS3D(`${req.params.shortname}.s3d`, zone => {
     console.log("Sending back S3D response")
+    res.send(zone)
+  })
+})
+
+route.get('/s3d_obj/:shortname', (req, res) => {
+  console.log("Got S3D_OBJ request")
+  loadS3D(`${req.params.shortname}_obj.s3d`, zone => {
+    console.log("Sending back S3D_OBJ response")
     res.send(zone)
   })
 })

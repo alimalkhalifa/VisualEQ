@@ -3,11 +3,14 @@ import { store } from '../store'
 
 export default class Camera {
   constructor() {
-    this.object = new THREE.PerspectiveCamera( 55, window.innerWidth / window.innerHeight, 1, 1000 );
+    this.windowSizeX = window.innerWidth
+    this.windowSizeY = window.innerHeight
+    this.object = new THREE.PerspectiveCamera( 55, this.windowSizeX / this.windowSizeY, 1, 1000 );
     this.object.up.set(0,0,1);
-    this.cameraSpeed = 50
+    this.cameraSpeed = 100
     this.doubleSpeed = false
-    this.cameraRotationSpeed = 0.002
+    this.halfSpeed = false
+    this.cameraRotationSpeed = 1
     this.mousePos = new THREE.Vector3()
     this.mouseLocked = false
     this.mouseState = [false, false, false]
@@ -53,7 +56,7 @@ export default class Camera {
       velocity.y -= 1
     }
   
-    velocity.multiplyScalar(delta * this.cameraSpeed * (this.doubleSpeed ? 2 : 1)).applyQuaternion(this.object.quaternion)
+    velocity.multiplyScalar(delta * this.cameraSpeed * (this.doubleSpeed ? 2 : 1) * (this.halfSpeed ? 0.5 : 1)).applyQuaternion(this.object.quaternion)
     this.object.position.add(velocity)
   }
 
@@ -93,8 +96,8 @@ export default class Camera {
     let mouseMoveX = event.movementX || event.mozMovementX || event.webkitMovementX || 0
     let mouseMoveY = event.movementY || event.mozMovementY || event.webkitMovementY || 0
   
-    this.cameraRotation -= mouseMoveX * this.cameraRotationSpeed
-    this.cameraPitch -= mouseMoveY * this.cameraRotationSpeed
+    this.cameraRotation -= mouseMoveX / this.windowSizeX * this.cameraRotationSpeed * this.object.aspect
+    this.cameraPitch -= mouseMoveY / this.windowSizeY * this.cameraRotationSpeed
     this.cameraPitch = Math.max(-(Math.PI/2), Math.min( (Math.PI/2), this.cameraPitch))
     this.updateCameraRotation()
   }
@@ -117,34 +120,38 @@ export default class Camera {
   }
 
   onViewportResize() {
-    this.object.aspect = window.innerWidth / window.innerHeight
+    this.windowSizeX = window.innerWidth
+    this.windowSizeY = window.innerHeight
+    this.object.aspect = this.windowSizeX / window.innerHeight
     this.object.updateProjectionMatrix()
-    store.getState().editor.scene.renderer.setSize( window.innerWidth, window.innerHeight )
   }
 
   onKeyDown( event ) {
     switch ( event.keyCode ) {
       case 87: /*W*/
         this.cameraMovementInput.forward = 1
-        break;
+        break
       case 65: /*A*/
         this.cameraMovementInput.left = 1
-        break;
+        break
       case 83: /*S*/
         this.cameraMovementInput.back = 1
-        break;
+        break
       case 68: /*D*/
         this.cameraMovementInput.right = 1
-        break;
+        break
       case 81: // Q
         this.cameraMovementInput.up = 1
-        break;
+        break
       case 90: // Z
         this.cameraMovementInput.down = 1
-        break;
+        break
       case 16: // Shift
         this.doubleSpeed = true
-        break;
+        break
+      /*case 17: // Ctrl
+        this.halfSpeed = true
+        break*/
     }
   }
 
@@ -171,6 +178,9 @@ export default class Camera {
       case 16: // Shift
         this.doubleSpeed = false
         break;
+      /*case 17: // Ctrl
+        this.halfSpeed = false
+        break*/
     }
   }
 }

@@ -2,9 +2,8 @@ const fs = require('fs')
 const zlib = require('pako')
 const { StringDecoder } = require('string_decoder')
 
-module.exports = function(fileName, cb) {
-  let filePath = `./zones/${fileName}`
-  fs.readFile(filePath, (err, file) => {
+module.exports = function(file, cb) {
+  fs.readFile(file, (err, file) => {
     if (err) throw err
     console.log(`Loading S3D`)
     let buf = Buffer.from(file)
@@ -63,20 +62,14 @@ module.exports = function(fileName, cb) {
       files[fileName] = f.data
     }
     console.log("Successfully Loaded")
-    console.log("Loading WLDs")
-    let wld = files[`${fileName.split('.')[0]}.wld`]
-    cb({
-      wld: loadWld(wld),
-      ...("objects.wld" in files ? {obj: loadWld(files["objects.wld"])} : {}),
-      s3d: {directory, files}
-    })
+    console.log("Loading crushbone.wld")
+    let wld = files["crushbone.wld"]
+    cb({wld: loadWld(wld), s3d: {directory, files}})
   })
 }
 
 function loadWld(wld) {
-  console.log("Loading WLD")
   let fragment = {}
-  let unknownFragments = {}
   let buf = Buffer.from(wld)
   let magic = buf.readUInt32LE(0)
   let version = buf.readUInt32LE(4)
@@ -95,14 +88,13 @@ function loadWld(wld) {
     let decodedChar = char ^ hashKey[i % 8]
     decodedStringHash[i] = decodedChar
   }
-  let stringTable = new StringDecoder().write(decodedStringHash)
+  let stringTable = new StringDecoder().write(decodedStringHash).split('\0')
   let fragIndex = 0
   let fragCursor = 28 + stringHashSize
   for (let i = 0; i < fragmentCount; i++) {
     let fragSize = buf.readUInt32LE(fragCursor)
     let fragType = buf.readUInt32LE(fragCursor + 4)
     let nameRef = buf.readInt32LE(fragCursor + 8)
-    let fragName = stringTable.substr(-nameRef, stringTable.indexOf('\0', -nameRef)+nameRef)
     let bodyCursor = fragCursor + 12
     switch(fragType) {
       case 0x03: // Texture Path
@@ -121,7 +113,7 @@ function loadWld(wld) {
           }
           let name = new StringDecoder().write(fileName)
           files.push(name.slice(0, name.length - 1))
-          fragment[fragIndex] = {type: "TexturePath", typeCode: fragType, name: fragName, files}
+          fragment[fragIndex] = {type: "TexturePath", typeCode: fragType, name: stringTable[-nameRef], files}
           bodyCursor += nameLength
         }
         break
@@ -145,74 +137,12 @@ function loadWld(wld) {
           texturePaths.push(buf.readInt32LE(bodyCursor) - 1)
           bodyCursor += 4
         }
-        fragment[fragIndex] = {type: "TextureInfo", typeCode: fragType, name: fragName, animatedFlag, ...(animatedFlag ? {frameTime} : {}), texturePaths}
+        fragment[fragIndex] = {type: "TextureInfo", typeCode: fragType, name: stringTable[-nameRef], animatedFlag, ...(animatedFlag ? {frameTime} : {}), texturePaths}
         break
       case 0x05: // Texture Info Reference
-        fragment[fragIndex] = {type: "TextureInfoRef", typeCode: fragType, name: fragName, textureInfo: buf.readUInt32LE(bodyCursor) - 1}
-        break
-      case 0x09: // Camera Ref
-        fragment[fragIndex] = {type: "CameraRef", typeCode: fragType, name: fragName, camera: buf.readUInt32LE(bodyCursor) - 1}
-        break
-      case 0x14: // Static or Animated Model Ref/Player Info
-        let staticModelFlags = buf.readUInt32LE(bodyCursor)
-        let staticModelParam1Exists = (staticModelFlags & 1) == 1 ? true : false
-        let staticModelParam2Exists = (staticModelFlags & 2) == 2 ? true : false
-        bodyCursor += 4
-        let staticModelFragment1 = buf.readInt32LE(bodyCursor)
-        bodyCursor += 4
-        let staticModelSize1 = buf.readUInt32LE(bodyCursor)
-        bodyCursor += 4
-        let staticModelSize2 = buf.readUInt32LE(bodyCursor)
-        bodyCursor += 4
-        bodyCursor += 4 // Skip Fragment2
-        if (staticModelParam1Exists) bodyCursor += 4 // Skip Params1
-        if (staticModelParam2Exists) bodyCursor += 4 * 7 // Skip Params2
-        for (let i = 0; i < staticModelSize1; i++) { // Skip Entry1
-          let size = buf.readUInt32LE(bodyCursor)
-          bodyCursor += 4
-          bodyCursor += 8 * size
-        }
-        let staticModelFragment3s = []
-        for (let i = 0; i < staticModelSize2; i++) {
-          staticModelFragment3s.push(buf.readUInt32LE(bodyCursor) - 1)
-          bodyCursor += 4
-        }
-        fragment[fragIndex] = {type: "StaticModelRef", typeCode: fragType, name: fragName, meshReferences: staticModelFragment3s}
+        fragment[fragIndex] = {type: "TextureInfoRef", typeCode: fragType, name: stringTable[-nameRef], textureInfo: buf.readUInt32LE(bodyCursor) - 1}
         break
       case 0x15: // PlaceableObject Location
-        let olName = buf.readInt32LE(bodyCursor)
-        bodyCursor += 4
-        let olFlag = buf.readUInt32LE(bodyCursor)
-        if ( olFlag == 0x2E ) break
-        let olRef = stringTable.substr(-olName, stringTable.indexOf('\0', -olName)+olName)
-        bodyCursor += 4
-        bodyCursor += 4 // Skip Fragment1
-        let olX = buf.readFloatLE(bodyCursor)
-        bodyCursor += 4
-        let olY = buf.readFloatLE(bodyCursor)
-        bodyCursor += 4
-        let olZ = buf.readFloatLE(bodyCursor)
-        bodyCursor += 4
-        let olRotZ = buf.readFloatLE(bodyCursor)
-        bodyCursor += 4
-        let olRotY = buf.readFloatLE(bodyCursor)
-        bodyCursor += 4
-        let olRotX = buf.readFloatLE(bodyCursor)
-        bodyCursor += 4
-        bodyCursor += 4 // Skip Params1
-        let olScaleY = buf.readFloatLE(bodyCursor)
-        bodyCursor += 4
-        let olScaleX = buf.readFloatLE(bodyCursor)
-        bodyCursor += 4
-        let vertexColorRef = buf.readFloatLE(bodyCursor)
-        fragment[fragIndex] = {type: "ObjectLocation", typeCode: fragType, name: fragName, ref: olRef, x: olX, y: olY, z: olZ, rotX: olRotX, rotY: olRotY, rotZ: olRotZ, scaleX: olScaleX, scaleY: olScaleY, vertexColorRef}
-        break
-      case 0x2C: // Mesh Alternate
-        console.log("MESH 2C FOUND")
-        fragment[fragIndex] = {type: "MeshAlt", typeCode: fragType, name: fragName}
-        break
-      case 0x2D: // Mesh Reference
-        fragment[fragIndex] = {type: "MeshRef", typeCode: fragType, name: fragName, mesh: buf.readUInt32LE(bodyCursor) - 1}
         break
       case 0x30: // Texture
         let existenceFlags = buf.readUInt32LE(bodyCursor)
@@ -226,7 +156,7 @@ function loadWld(wld) {
           bodyCursor += 0
         }
         let textureInfoRef = buf.readUInt32LE(bodyCursor) - 1
-        fragment[fragIndex] = {type: "Texture", typeCode: fragType, name: fragName, transparent, masked, textureInfoRef}
+        fragment[fragIndex] = {type: "Texture", typeCode: fragType, name: stringTable[-nameRef], transparent, masked, textureInfoRef}
         break
       case 0x31: // TextureList
         bodyCursor += 4
@@ -237,7 +167,7 @@ function loadWld(wld) {
           texture.push(buf.readInt32LE(bodyCursor) - 1)
           bodyCursor += 4
         }
-        fragment[fragIndex] = {type: "TextureList", typeCode: fragType, name: fragName, textureInfoRefsList: texture}
+        fragment[fragIndex] = {type: "TextureList", typeCode: fragType, name: stringTable[-nameRef], textureInfoRefsList: texture}
         break
       case 0x36: // Mesh
         let meshFlags = buf.readUInt32LE(bodyCursor)
@@ -346,7 +276,7 @@ function loadWld(wld) {
           bodyCursor += 2
           vertexTextures.push({vertexCount, textureIndex})
         }
-        fragment[fragIndex] = {type: "Mesh", typeCode: fragType, name: fragName,
+        fragment[fragIndex] = {type: "Mesh", typeCode: fragType,
           meshType,
           textureList,
           animatedVertices,
@@ -371,6 +301,8 @@ function loadWld(wld) {
         }
         break
       case 0x08: // Camera
+      case 0x09: // Camera Ref
+      case 0x14: // Player Info
       case 0x16: // Zone Unknown
       case 0x1B: // Light Source
       case 0x1C: // Light Source Ref
@@ -378,22 +310,13 @@ function loadWld(wld) {
       case 0x22: // BSP Region
       case 0x29: // Region Flag
       case 0x2A: // Ambient Light
-      case 0x32: // Vertex Color
-      case 0x33: // Vertex Color Ref
       case 0x35: // First Fragment -- Purpose Unknown
+        break;
       default:
-        if ( unknownFragments[fragType] ) {
-          unknownFragments[fragType]++
-        } else {
-          unknownFragments[fragType] = 1
-        }
+        fragment[fragIndex] = {typeCode: fragType, unknown: true}
     }
     fragCursor += fragSize + 8
     fragIndex += 1
-  }
-  console.log(`Encountered unknown fragments:`)
-  for (let fragType in unknownFragments) {
-    console.log(`0x${parseInt(fragType).toString(16)} - ${unknownFragments[fragType]} count`)
   }
   console.log("Done loading all fragments")
   return fragment

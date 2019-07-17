@@ -1,6 +1,6 @@
 {
   "database": {
-    "host": "localhost",
+    "host": "nas",
     "port": 3306,
     "user": "eqemu",
     "password": "eqemu",

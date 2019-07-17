@@ -12,6 +12,20 @@
 				width: 100%;
 				height: 100%
 			}
+			#loading-container {
+				position: absolute;
+				height: 100%;
+				width: 100%;
+				display: flex;
+				flex-flow: row;
+				align-items: center;
+			}
+			#loading {
+				width: 100%;
+				text-align: center;
+				font-size: xx-large;
+				color: white;
+			}
 			#info-box {
 				position: absolute;
 				top: 10%;
@@ -29,6 +43,7 @@
 		</style>
 	</head>
 	<body>
+		<div id="loading-container"><div id="loading">Loading...</div></div>
 		<div id="info-box">Empty</div>
 		<div id="viewport"></div>
 		<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>

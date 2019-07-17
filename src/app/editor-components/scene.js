@@ -19,11 +19,13 @@ export default class Scene extends EventEmitter {
     this.raycaster = null
     this.zoneInfo = {}
     this.renderer = null
+    this.loadingContainer = null
     this.Init()
   }
 
   Init() {
     store.dispatch(changeScene(this))
+    this.loadingContainer = document.getElementById('loading-container')
     this.infoBox = new InfoBox()
     this.scene =  new THREE.Scene()
     this.camera = new FlyCamera()
@@ -70,17 +72,22 @@ export default class Scene extends EventEmitter {
       return res.json()
     }).then(res => {
       console.log("Fetched zone Geometry")
-    
       fetch('/zone/s3d_obj/crushbone').then(resobj => {
         return resobj.json()
       }).then(resobj => {
         console.log("Fetched zone object Geometry")
-        this.loadWLD(res.wld, res.s3d, res.obj, resobj.wld, resobj.s3d)
+        this.loadWLD(res.wld, res.s3d, res.obj, resobj.wld, resobj.s3d, this.onFinishLoading.bind(this))
       })
     })
   }
 
-  loadWLD(wld, s3d, obj, wldobj, objs3d) {
+  onFinishLoading() {
+    console.log("Finished Loading")
+    console.log(this.loadingContainer)
+    this.loadingContainer.style.visibility = "hidden"
+  }
+
+  loadWLD(wld, s3d, obj, wldobj, objs3d, cb) {
     for (let fragIndex in wld) {
       let fragment = wld[fragIndex]
       if (fragment.type === "Mesh") {
@@ -100,6 +107,7 @@ export default class Scene extends EventEmitter {
         }
       }
     }
+    cb()
   }
 
   loadWLDMesh(fragment, fragIndex, wld, s3d, x = 0, y = 0, z = 0, rotX = 0, rotY = 0, rotZ = 0, scaleX = 1, scaleY = 1) {
@@ -159,22 +167,67 @@ export default class Scene extends EventEmitter {
         geometry.addAttribute('uv', new THREE.BufferAttribute(new Float32Array(uvs), 2))
         geometry.computeBoundingBox()
         let textureRaw = s3d.files[fragment.polygonTextures[polygonTexIndex].texturePaths[0].files[0].toLowerCase()]
-        let textureData = new Buffer(textureRaw).toString('base64')
+        let textureBuffer = new Buffer(textureRaw)
+        let alphaBuffer = new Buffer(textureRaw)
+        let textureType = String.fromCharCode(alphaBuffer.readInt8(0)) + String.fromCharCode(alphaBuffer.readInt8(1))
+        if (textureType === 'BM' && fragment.polygonTextures[polygonTexIndex].texture.masked) {
+          let bSize = alphaBuffer.readUInt16LE(2)
+          let bOffset = alphaBuffer.readUInt16LE(10)
+          let bHSize = alphaBuffer.readUInt16LE(14)
+          let bDepth = alphaBuffer.readInt8(28)
+          let bColorTableCount = alphaBuffer.readUInt16LE(46) || Math.pow(2, bDepth)
+          let bColorTableOffset = 14 + bHSize
+          alphaBuffer.writeUInt8(1, bColorTableOffset)
+          alphaBuffer.writeUInt8(1, bColorTableOffset + 1)
+          alphaBuffer.writeUInt8(1, bColorTableOffset + 2)
+          alphaBuffer.writeUInt8(1, bColorTableOffset + 3)
+          for (let i = 1; i < bColorTableCount; i++) {
+            alphaBuffer.writeUInt8(0xFF, bColorTableOffset + i * 4)
+            alphaBuffer.writeUInt8(0xFF, bColorTableOffset + 1 + i * 4)
+            alphaBuffer.writeUInt8(0xFF, bColorTableOffset + 2 + i * 4)
+            alphaBuffer.writeUInt8(0xFF, bColorTableOffset + 3 + i * 4)
+          }
+          let textureCursor = bOffset
+          /*while( textureCursor < bSize ) {
+            if (alphaBuffer.readUInt8(textureCursor) !== 0) {
+              alphaBuffer.writeUInt8(5, textureCursor)
+            }
+            textureCursor += 1
+          }*/
+          //textureBuffer = alphaBuffer
+        }
+        let textureData = new Buffer(textureBuffer).toString('base64')
         let textureURI = `data:image/bmp;base64,${textureData}`
+        let alphaData = new Buffer(alphaBuffer).toString('base64')
+        let alphaURI = `data:image/bmp;base64,${alphaData}`
         let texture = new THREE.Texture()
         texture.wrapS = THREE.RepeatWrapping
         texture.wrapT = THREE.RepeatWrapping
+        texture.magFilter = THREE.NearestFilter
+        texture.minFilter = THREE.NearestFilter
+        let alpha = new THREE.Texture()
+        alpha.wrapS = THREE.RepeatWrapping
+        alpha.wrapT = THREE.RepeatWrapping
+        alpha.magFilter = THREE.NearestFilter
+        alpha.minFilter = THREE.NearestFilter
         let image = new Image()
         image.onload = () => {
           texture.image = image
           texture.needsUpdate = true
         }
         image.src = textureURI
+        let alphaImage = new Image()
+        alphaImage.onload = () => {
+          alpha.image = alphaImage
+          alpha.needsUpdate = true
+        }
+        alphaImage.src = alphaURI
         let material = new THREE.MeshLambertMaterial({
           map: texture,
-          transparent: (fragment.polygonTextures[polygonTexIndex].texture.transparent || fragment.polygonTextures[polygonTexIndex].texture.masked),
-          ...(fragment.polygonTextures[polygonTexIndex].texture.masked ? {alphaMap: texture} : {}),
-          opacity: (fragment.polygonTextures[polygonTexIndex].texture.transparent? 0 : 1)
+          ...(fragment.polygonTextures[polygonTexIndex].texture.masked ? {alphaMap: alpha} : {}),
+          ...((fragment.polygonTextures[polygonTexIndex].texture.transparent || fragment.polygonTextures[polygonTexIndex].texture.masked) ? {transparent: 1} : {}),
+          ...(fragment.polygonTextures[polygonTexIndex].texture.transparent ? {opacity: 0} : {}),
+          alphaTest: 0.5
         })
         var mesh = new THREE.Mesh(geometry, material)
         mesh.position.set(x, y, z)

@@ -204,7 +204,7 @@ function loadWld(wld) {
         bodyCursor += 4
         let olScaleX = buf.readFloatLE(bodyCursor)
         bodyCursor += 4
-        let vertexColorRef = buf.readFloatLE(bodyCursor)
+        let vertexColorRef = buf.readUInt32LE(bodyCursor) - 1
         fragment[fragIndex] = {type: "ObjectLocation", typeCode: fragType, name: fragName, ref: olRef, x: olX, y: olY, z: olZ, rotX: olRotX, rotY: olRotY, rotZ: olRotZ, scaleX: olScaleX, scaleY: olScaleY, vertexColorRef}
         break
       case 0x2C: // Mesh Alternate

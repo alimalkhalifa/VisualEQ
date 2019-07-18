@@ -83,7 +83,6 @@ export default class Scene extends EventEmitter {
 
   onFinishLoading() {
     console.log("Finished Loading")
-    console.log(this.loadingContainer)
     this.loadingContainer.style.visibility = "hidden"
   }
 
@@ -166,6 +165,7 @@ export default class Scene extends EventEmitter {
         geometry.addAttribute('normal', new THREE.BufferAttribute(new Float32Array(normals), 3))
         geometry.addAttribute('uv', new THREE.BufferAttribute(new Float32Array(uvs), 2))
         geometry.computeBoundingBox()
+        let textureFire = fragment.polygonTextures[polygonTexIndex].texturePaths[0].files[0].toLowerCase().indexOf("fire") !== -1
         let textureRaw = s3d.files[fragment.polygonTextures[polygonTexIndex].texturePaths[0].files[0].toLowerCase()]
         let textureBuffer = new Buffer(textureRaw)
         let alphaBuffer = new Buffer(textureRaw)
@@ -177,24 +177,14 @@ export default class Scene extends EventEmitter {
           let bDepth = alphaBuffer.readInt8(28)
           let bColorTableCount = alphaBuffer.readUInt16LE(46) || Math.pow(2, bDepth)
           let bColorTableOffset = 14 + bHSize
-          alphaBuffer.writeUInt8(1, bColorTableOffset)
-          alphaBuffer.writeUInt8(1, bColorTableOffset + 1)
-          alphaBuffer.writeUInt8(1, bColorTableOffset + 2)
-          alphaBuffer.writeUInt8(1, bColorTableOffset + 3)
-          for (let i = 1; i < bColorTableCount; i++) {
-            alphaBuffer.writeUInt8(0xFF, bColorTableOffset + i * 4)
-            alphaBuffer.writeUInt8(0xFF, bColorTableOffset + 1 + i * 4)
-            alphaBuffer.writeUInt8(0xFF, bColorTableOffset + 2 + i * 4)
-            alphaBuffer.writeUInt8(0xFF, bColorTableOffset + 3 + i * 4)
+          let bTransparentIndex = 0//alphaBuffer.readUInt8(bOffset)
+          for (let i = 0; i < bColorTableCount; i++) {
+            let bNewColor = i === bTransparentIndex ? 0x00 : 0xFF
+            alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + i * 4)
+            alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + 1 + i * 4)
+            alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + 2 + i * 4)
+            alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + 3 + i * 4)
           }
-          let textureCursor = bOffset
-          /*while( textureCursor < bSize ) {
-            if (alphaBuffer.readUInt8(textureCursor) !== 0) {
-              alphaBuffer.writeUInt8(5, textureCursor)
-            }
-            textureCursor += 1
-          }*/
-          //textureBuffer = alphaBuffer
         }
         let textureData = new Buffer(textureBuffer).toString('base64')
         let textureURI = `data:image/bmp;base64,${textureData}`
@@ -203,13 +193,13 @@ export default class Scene extends EventEmitter {
         let texture = new THREE.Texture()
         texture.wrapS = THREE.RepeatWrapping
         texture.wrapT = THREE.RepeatWrapping
-        texture.magFilter = THREE.NearestFilter
-        texture.minFilter = THREE.NearestFilter
+        //texture.magFilter = THREE.NearestFilter // EQ Filters textures
+        //texture.minFilter = THREE.NearestFilter
         let alpha = new THREE.Texture()
         alpha.wrapS = THREE.RepeatWrapping
         alpha.wrapT = THREE.RepeatWrapping
-        alpha.magFilter = THREE.NearestFilter
-        alpha.minFilter = THREE.NearestFilter
+        //alpha.magFilter = THREE.NearestFilter
+        //alpha.minFilter = THREE.NearestFilter
         let image = new Image()
         image.onload = () => {
           texture.image = image
@@ -221,20 +211,25 @@ export default class Scene extends EventEmitter {
           alpha.image = alphaImage
           alpha.needsUpdate = true
         }
-        alphaImage.src = alphaURI
+        if (textureFire) {
+          alphaImage.src = textureURI
+          alpha.format = THREE.LuminanceFormat
+        } else {
+          alphaImage.src = alphaURI
+        }
         let material = new THREE.MeshLambertMaterial({
           map: texture,
           ...(fragment.polygonTextures[polygonTexIndex].texture.masked ? {alphaMap: alpha} : {}),
           ...((fragment.polygonTextures[polygonTexIndex].texture.transparent || fragment.polygonTextures[polygonTexIndex].texture.masked) ? {transparent: 1} : {}),
           ...(fragment.polygonTextures[polygonTexIndex].texture.transparent ? {opacity: 0} : {}),
-          alphaTest: 0.5
+          alphaTest: 0.8
         })
         var mesh = new THREE.Mesh(geometry, material)
         mesh.position.set(x, y, z)
+        mesh.scale.set(scaleX, scaleX, scaleY)
         mesh.rotateOnAxis(new THREE.Vector3(0, 0, 1), THREE.Math.degToRad(rotZ / (512/360)))
         mesh.rotateOnAxis(new THREE.Vector3(1, 0, 0), THREE.Math.degToRad(rotY / (512/360)))
         mesh.rotateOnAxis(new THREE.Vector3(0, 1, 0), THREE.Math.degToRad(rotX / (512/360)))
-        mesh.scale.set(scaleX, scaleY, 1)
         mesh.userData.fragIndex = fragIndex
         mesh.userData.fragment = fragment
         this.scene.add(mesh)

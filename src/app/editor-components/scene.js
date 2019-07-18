@@ -68,11 +68,11 @@ export default class Scene extends EventEmitter {
   }
 
   updateZoneS3D() {
-    fetch('/zone/s3d/crushbone').then(res => {
+    fetch(`/zone/s3d/${this.zoneShortName}`).then(res => {
       return res.json()
     }).then(res => {
       console.log("Fetched zone Geometry")
-      fetch('/zone/s3d_obj/crushbone').then(resobj => {
+      fetch(`/zone/s3d_obj/${this.zoneShortName}`).then(resobj => {
         return resobj.json()
       }).then(resobj => {
         console.log("Fetched zone object Geometry")

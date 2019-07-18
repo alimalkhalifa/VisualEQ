@@ -114,11 +114,14 @@ export default class Scene extends EventEmitter {
     for (let t in fragment.polygonTextures) {
       fragment.polygonTextures[t].texture = wld[fragment.textureListRef.textureInfoRefsList[fragment.polygonTextures[t].textureIndex]]
       let textureInfoRef = wld[fragment.polygonTextures[t].texture.textureInfoRef]
-      fragment.polygonTextures[t].textureInfo = wld[textureInfoRef.textureInfo]
-      let texturePathsRef = fragment.polygonTextures[t].textureInfo.texturePaths
-      fragment.polygonTextures[t].texturePaths = []
-      for (let p of texturePathsRef) {
-        fragment.polygonTextures[t].texturePaths.push(wld[p])
+      //console.log(fragment.polygonTextures)
+      if (textureInfoRef) {
+        fragment.polygonTextures[t].textureInfo = wld[textureInfoRef.textureInfo]
+        let texturePathsRef = fragment.polygonTextures[t].textureInfo.texturePaths
+        fragment.polygonTextures[t].texturePaths = []
+        for (let p of texturePathsRef) {
+          fragment.polygonTextures[t].texturePaths.push(wld[p])
+        }
       }
     }
     let polygons = fragment.polygons
@@ -165,30 +168,32 @@ export default class Scene extends EventEmitter {
         geometry.addAttribute('normal', new THREE.BufferAttribute(new Float32Array(normals), 3))
         geometry.addAttribute('uv', new THREE.BufferAttribute(new Float32Array(uvs), 2))
         geometry.computeBoundingBox()
-        let textureFire = fragment.polygonTextures[polygonTexIndex].texturePaths[0].files[0].toLowerCase().indexOf("fire") !== -1
-        let textureRaw = s3d.files[fragment.polygonTextures[polygonTexIndex].texturePaths[0].files[0].toLowerCase()]
-        let textureBuffer = new Buffer(textureRaw)
-        let alphaBuffer = new Buffer(textureRaw)
-        let textureType = String.fromCharCode(alphaBuffer.readInt8(0)) + String.fromCharCode(alphaBuffer.readInt8(1))
-        if (textureType === 'BM' && fragment.polygonTextures[polygonTexIndex].texture.masked) {
-          let bSize = alphaBuffer.readUInt16LE(2)
-          let bOffset = alphaBuffer.readUInt16LE(10)
-          let bHSize = alphaBuffer.readUInt16LE(14)
-          let bDepth = alphaBuffer.readInt8(28)
-          let bColorTableCount = alphaBuffer.readUInt16LE(46) || Math.pow(2, bDepth)
-          let bColorTableOffset = 14 + bHSize
-          let bTransparentIndex = 0//alphaBuffer.readUInt8(bOffset)
-          for (let i = 0; i < bColorTableCount; i++) {
-            let bNewColor = i === bTransparentIndex ? 0x00 : 0xFF
-            alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + i * 4)
-            alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + 1 + i * 4)
-            alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + 2 + i * 4)
-            alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + 3 + i * 4)
+        let textureFire = fragment.polygonTextures[polygonTexIndex].texturePaths ? fragment.polygonTextures[polygonTexIndex].texturePaths[0].files[0].toLowerCase().indexOf("fire") !== -1 : false
+        let textureRaw = fragment.polygonTextures[polygonTexIndex].texturePaths ? s3d.files[fragment.polygonTextures[polygonTexIndex].texturePaths[0].files[0].toLowerCase()] : null
+        let textureBuffer = textureRaw ? new Buffer(textureRaw) : null
+        let alphaBuffer = textureRaw ? new Buffer(textureRaw) : null
+        if (alphaBuffer) {
+          let textureType = String.fromCharCode(alphaBuffer.readInt8(0)) + String.fromCharCode(alphaBuffer.readInt8(1))
+          if (textureType === 'BM' && fragment.polygonTextures[polygonTexIndex].texture.masked) {
+            let bSize = alphaBuffer.readUInt16LE(2)
+            let bOffset = alphaBuffer.readUInt16LE(10)
+            let bHSize = alphaBuffer.readUInt16LE(14)
+            let bDepth = alphaBuffer.readInt8(28)
+            let bColorTableCount = alphaBuffer.readUInt16LE(46) || Math.pow(2, bDepth)
+            let bColorTableOffset = 14 + bHSize
+            let bTransparentIndex = 0//alphaBuffer.readUInt8(bOffset)
+            for (let i = 0; i < bColorTableCount; i++) {
+              let bNewColor = i === bTransparentIndex ? 0x00 : 0xFF
+              alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + i * 4)
+              alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + 1 + i * 4)
+              alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + 2 + i * 4)
+              alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + 3 + i * 4)
+            }
           }
         }
-        let textureData = new Buffer(textureBuffer).toString('base64')
+        let textureData = textureBuffer ? textureBuffer.toString('base64') : null
         let textureURI = `data:image/bmp;base64,${textureData}`
-        let alphaData = new Buffer(alphaBuffer).toString('base64')
+        let alphaData = alphaBuffer ? new Buffer(alphaBuffer).toString('base64') : null
         let alphaURI = `data:image/bmp;base64,${alphaData}`
         let texture = new THREE.Texture()
         texture.wrapS = THREE.RepeatWrapping

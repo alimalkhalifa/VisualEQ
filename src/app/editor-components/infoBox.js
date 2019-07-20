@@ -123,6 +123,7 @@ export default class InfoBox {
       <h6 class="card-subtitle mb2 text-muted">ID ${npc.id}</h6>
       <div class="card-text">
         Name: ${npc.name}<br/>
+        Race: ${npc.race}<br/>
       </div>
       `
       this.domElement.appendChild(card)

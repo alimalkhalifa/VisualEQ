@@ -153,6 +153,113 @@ function loadWld(wld) {
       case 0x09: // Camera Ref
         fragment[fragIndex] = {type: "CameraRef", typeCode: fragType, name: fragName, camera: buf.readUInt32LE(bodyCursor) - 1}
         break
+      case 0x10: // Skeleton Track
+        let skeletonTrackFlags = buf.readUInt32LE(bodyCursor)
+        let skeletonTrackParams1Exists = (skeletonTrackFlags & 1) === 1
+        let skeletonTrackParams2Exists = (skeletonTrackFlags & 2) === 2
+        let skeletonTrackSize2Fragment3Data3Exists = (skeletonTrackFlags & (2 << 9)) === (2 << 9)
+        console.log(`${skeletonTrackParams1Exists}, ${skeletonTrackParams2Exists}, ${skeletonTrackSize2Fragment3Data3Exists}`)
+        bodyCursor += 4
+        let skeletonTrackSize1 = buf.readUInt32LE(bodyCursor)
+        bodyCursor += 4
+        let skeletonTrackFragment = buf.readUInt32LE(bodyCursor)
+        bodyCursor += 4
+        if (skeletonTrackParams1Exists) bodyCursor += 12 // Skip Params1
+        if (skeletonTrackParams2Exists) bodyCursor += 4 // Skip Params2
+        let skeletonTrackEntries = []
+        for (let i = 0; i < skeletonTrackSize1; i++) {
+          let Entry1 = {}
+          Entry1.NameRef = buf.readInt32LE(bodyCursor)
+          Entry1.Name = stringTable.substr(-Entry1.NameRef, stringTable.indexOf('\0', -Entry1.NameRef)+Entry1.NameRef)
+          bodyCursor += 4
+          Entry1.Flags = buf.readUInt32LE(bodyCursor)
+          bodyCursor += 4
+          Entry1.Fragment1 = buf.readUInt32LE(bodyCursor) - 1
+          bodyCursor += 4
+          Entry1.Fragment2 = buf.readUInt32LE(bodyCursor)
+          bodyCursor += 4
+          Entry1.Size = buf.readUInt32LE(bodyCursor)
+          bodyCursor += 4
+          Entry1.Data = []
+          for (let j = 0; j < Entry1.Size; j++) {
+            Entry1.Data.push(buf.readUInt32LE(bodyCursor))
+            bodyCursor += 4
+          }
+          skeletonTrackEntries.push(Entry1)
+        }
+        let skeletonTrackSize2 = 0
+        let skeletonTrackFragment3 = []
+        let skeletonTrackData3 = []
+        if (skeletonTrackSize2Fragment3Data3Exists) {
+          skeletonTrackSize2 = buf.readUInt32LE(bodyCursor)
+          bodyCursor += 4
+        }
+        for (let i = 0; i < skeletonTrackSize2; i++) { // if skeletonTrackSize2Fragment3Data3Exists
+          skeletonTrackFragment3.push(buf.readUInt32LE(bodyCursor))
+          bodyCursor += 4
+        }
+        for (let i = 0; i < skeletonTrackSize2; i++) { // if skeletonTrackSize2Fragment3Data3Exists
+          skeletonTrackData3.push(buf.readUInt32LE(bodyCursor))
+          bodyCursor += 4
+        }
+        fragment[fragIndex] = {type: "SkeletonTrack", typeCode: fragType, name: fragName,
+          entriesCount: skeletonTrackSize1,
+          polygonAnimationRef: skeletonTrackFragment,
+          entries: skeletonTrackEntries,
+          meshRefsCount: skeletonTrackSize2,
+          meshRefs: skeletonTrackFragment3,
+          data3: skeletonTrackData3
+        }
+        break
+      case 0x11: // Skeleton Track Set Reference
+        fragment[fragIndex] = {type: "SkeletonTrackRef", typeCode: fragType, name: fragName, skeletonTrack: buf.readUInt32LE(bodyCursor) - 1}
+        break
+      case 0x12: // Skeleton Piece Track
+        let skeletonPieceTrackFlags = buf.readUInt32LE(bodyCursor)
+        bodyCursor += 4
+        let skeletonPieceTrackSize = buf.readUInt32LE(bodyCursor)
+        bodyCursor += 4
+        let skeletonPieceRotateDenominator = []
+        let skeletonPieceRotateXNumerator = []
+        let skeletonPieceRotateYNumerator = []
+        let skeletonPieceRotateZNumerator = []
+        let skeletonPieceShiftXNumerator = []
+        let skeletonPieceShiftYNumerator = []
+        let skeletonPieceShiftZNumerator = []
+        let skeletonPieceShiftDenominator = []
+        for (let i = 0; i < skeletonPieceTrackSize; i++) {
+          skeletonPieceRotateDenominator.push(buf.readInt16LE(bodyCursor))
+          bodyCursor += 2
+          skeletonPieceRotateXNumerator.push(buf.readInt16LE(bodyCursor))
+          bodyCursor += 2
+          skeletonPieceRotateYNumerator.push(buf.readInt16LE(bodyCursor))
+          bodyCursor += 2
+          skeletonPieceRotateZNumerator.push(buf.readInt16LE(bodyCursor))
+          bodyCursor += 2
+          skeletonPieceShiftXNumerator.push(buf.readInt16LE(bodyCursor))
+          bodyCursor += 2
+          skeletonPieceShiftYNumerator.push(buf.readInt16LE(bodyCursor))
+          bodyCursor += 2
+          skeletonPieceShiftZNumerator.push(buf.readInt16LE(bodyCursor))
+          bodyCursor += 2
+          skeletonPieceShiftDenominator.push(buf.readInt16LE(bodyCursor))
+          bodyCursor += 2
+        }
+        fragment[fragIndex] = {type: "SkeletonPieceTrack", typeCode: fragType, name: fragName,
+          size: skeletonPieceTrackSize,
+          rotateDenominator: skeletonPieceRotateDenominator,
+          rotateX: skeletonPieceRotateXNumerator,
+          rotateY: skeletonPieceRotateYNumerator,
+          rotateZ: skeletonPieceRotateZNumerator,
+          shiftDenominator: skeletonPieceShiftDenominator,
+          shiftX: skeletonPieceShiftXNumerator,
+          shiftY: skeletonPieceShiftYNumerator,
+          shiftZ: skeletonPieceShiftZNumerator
+        }
+        break
+      case 0x13: // Skeleton Piece Track Ref
+        fragment[fragIndex] = {type: "SkeletonPieceTrackRef", typeCode: fragType, name: fragName, skeletonPieceTrack: buf.readUInt32LE(bodyCursor) - 1}
+        break
       case 0x14: // Static or Animated Model Ref/Player Info
         let staticModelFlags = buf.readUInt32LE(bodyCursor)
         let staticModelParam1Exists = (staticModelFlags & 1) == 1 ? true : false
@@ -220,13 +327,25 @@ function loadWld(wld) {
         let pairFieldExists = (existenceFlags & 1) === 1
         let textureFlags = buf.readUInt32LE(bodyCursor)
         bodyCursor += 4 + 12
-        let transparent = !((textureFlags & 1) === 1)
+        let notTransparent = (textureFlags & 1) === 1
         let masked = (textureFlags & 2) === 2
+        let semitransparentNoMask = (textureFlags & 4) === 4
+        let semitransparentMask = (textureFlags & 8) === 8
+        let notSemitransparentMask = (textureFlags & 16) === 16
+        let apparentlyNotTransparent = (textureFlags & (1 << 31)) === (1 << 31)
         if (pairFieldExists) {
           bodyCursor += 0
         }
         let textureInfoRef = buf.readUInt32LE(bodyCursor) - 1
-        fragment[fragIndex] = {type: "Texture", typeCode: fragType, name: fragName, transparent, masked, textureInfoRef}
+        fragment[fragIndex] = {type: "Texture", typeCode: fragType, name: fragName,
+          notTransparent,
+          masked,
+          semitransparentNoMask,
+          semitransparentMask,
+          notSemitransparentMask,
+          apparentlyNotTransparent,
+          textureInfoRef
+        }
         break
       case 0x31: // TextureList
         bodyCursor += 4

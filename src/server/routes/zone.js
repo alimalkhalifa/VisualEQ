@@ -2,14 +2,41 @@ var express = require('express')
 var route = express.Router()
 var database = require('../database.js')
 var loadS3D = require('../loaders/s3d.js')
+var fs = require('fs')
+var { WLDParser } = require('../../common/helpers/wldParser')
 
 route.use('/file', express.static('zones'))
 
 route.get('/s3d/:shortname', (req, res) => {
+  const wldParser = new WLDParser()
   console.log("Got S3D request")
-  loadS3D(`${req.params.shortname}.s3d`, zone => {
-    console.log("Sending back S3D response")
-    res.send(zone)
+  fs.readFile('./graphics_cache/globals.json', 'utf-8', (err, globaldata) => {
+    fs.exists(`./graphics_cache/${req.params.shortname}.json`, exists => {
+      if (exists) {
+        fs.readFile(`graphics_cache/${req.params.shortname}.json`, 'utf-8', (err, data) => {
+          res.send(mergeData(JSON.parse(data), JSON.parse(globaldata)))
+        })
+      } else {
+        loadS3D(`${req.params.shortname}.s3d`, zone => {
+          loadS3D(`${req.params.shortname}_obj.s3d`, obj => {
+            loadS3D(`${req.params.shortname}_chr.s3d`, chr => {
+              loadS3D(`global_chr.s3d`, globalchr => {
+                wldParser.createScene(zone, obj).then(scene => {
+                  wldParser.loadChrMeshes([chr/*, globalchr*/]).then(characters => {
+                    console.log('sending')
+                    let world = {...scene, characters: characters.characters, chrtextures: characters.textures}
+                    res.send(mergeData(world, globaldata))
+                    fs.writeFile(`graphics_cache/${req.params.shortname}.json`, JSON.stringify(world), err => {
+                      if (err) throw new Error(err)
+                    })
+                  })
+                })
+              })
+            })
+          })
+        })
+      }
+    })
   })
 })
 
@@ -78,5 +105,29 @@ route.get('/spawns/:shortname', (req, res) => {
     })
   })
 })
+
+function mergeData(d, g) {
+  return {
+    meshCache: {
+      ...d.meshCache,
+      ...g.meshCache
+    },
+    characters: {
+      ...d.characters,
+      ...g.characters
+    },
+    chrtextures: {
+      ...d.chrtextures,
+      ...g.chrtextures
+    },
+    objectLocations: d.objectLocations,
+    objtextures: {
+      ...d.objtextures,
+      ...g.objtextures
+    },
+    scene: d.scene,
+    textures: d.textures
+  }
+}
 
 module.exports = route

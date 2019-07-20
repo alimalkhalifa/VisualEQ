@@ -158,7 +158,6 @@ function loadWld(wld) {
         let skeletonTrackParams1Exists = (skeletonTrackFlags & 1) === 1
         let skeletonTrackParams2Exists = (skeletonTrackFlags & 2) === 2
         let skeletonTrackSize2Fragment3Data3Exists = (skeletonTrackFlags & (2 << 9)) === (2 << 9)
-        console.log(`${skeletonTrackParams1Exists}, ${skeletonTrackParams2Exists}, ${skeletonTrackSize2Fragment3Data3Exists}`)
         bodyCursor += 4
         let skeletonTrackSize1 = buf.readUInt32LE(bodyCursor)
         bodyCursor += 4

@@ -24,6 +24,7 @@ export default class Scene extends EventEmitter {
     this.loadingContainer = null
     this.material_cache = {}
     this.chr_meshCache = {}
+    this.chrtextures = {}
     this.Init()
   }
 
@@ -104,11 +105,15 @@ export default class Scene extends EventEmitter {
         }
         this.chr_meshCache[c] = cache
       }
+      this.chrtextures = res.chrtextures
       this.loadSpawns()
     })
   }
 
-  loadMaterial(textureName, textures, textureInfo) {
+  loadMaterial(textureName, textures, textureInfo, textureNumber = 0) {
+    if (textureNumber > 0) {
+      textureName = textureName.substr(0, textureName.indexOf('0')) + "0" + textureNumber + textureName.substr(textureName.indexOf('0') + 2)
+    }
     if (this.material_cache[textureName]) return this.material_cache[textureName]
     let data = null
     for (let t in textures) {
@@ -233,7 +238,9 @@ export default class Scene extends EventEmitter {
       let raceCode = raceCodes[npc.race][genderName]
       if (this.chr_meshCache[raceCode]) {
         for (let mesh of this.chr_meshCache[raceCode]) {
-          base.add(mesh.clone().rotateOnAxis(new THREE.Vector3(0,0,1), THREE.Math.degToRad(spawn.heading - 90)))
+          let newmesh = mesh.clone().rotateOnAxis(new THREE.Vector3(0,0,1), THREE.Math.degToRad(spawn.heading - 90))
+          if (npc.texture > 0) newmesh.material = this.loadMaterial(newmesh.userData.textureFile, this.chrtextures, newmesh.userData.texture.texture, npc.texture)
+          base.add(newmesh) 
         }
       }
       this.scene.add(base)

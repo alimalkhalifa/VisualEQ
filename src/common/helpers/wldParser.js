@@ -1,4 +1,5 @@
 const THREE = require('three')
+const fs = require('fs')
 
 class WLDParser {
 
@@ -98,6 +99,9 @@ class WLDParser {
     let textures = {}
     for(let s3d of chrs) {
       let chr = s3d.wld
+      fs.writeFile('ss.json', JSON.stringify(chr, null, 2), err => {
+        if (err) throw new Error(err)
+      })
       for (let fragIndex in chr) {
         let fragment = chr[fragIndex]
         if (fragment.type === "StaticModelRef") {

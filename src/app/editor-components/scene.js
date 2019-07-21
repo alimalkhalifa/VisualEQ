@@ -79,7 +79,7 @@ export default class Scene extends EventEmitter {
     fetch(`/zone/s3d/${this.zoneShortName}`).then(res => {
       return res.json()
     }).then(res => {
-      console.log(res)
+      //console.log(res)
       let objectLoader = new THREE.ObjectLoader()
       let world = objectLoader.parse(res.scene)
       for (let w of world.children) {

@@ -141,10 +141,10 @@ export default class Camera {
         this.cameraMovementInput.right = 1
         break
       case 81: // Q
-        this.cameraMovementInput.up = 1
-        break
-      case 90: // Z
         this.cameraMovementInput.down = 1
+        break
+      case 69: // E
+        this.cameraMovementInput.up = 1
         break
       case 16: // Shift
         this.doubleSpeed = true
@@ -172,7 +172,7 @@ export default class Camera {
       case 81: // Q
         this.cameraMovementInput.up = 0
         break;
-      case 90: // Z
+      case 69: // E
         this.cameraMovementInput.down = 0
         break;
       case 16: // Shift

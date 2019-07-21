@@ -1,7 +1,9 @@
 import {
   ADD_SPAWN,
   CHANGE_SCENE,
-  UPDATE_SELECTED
+  UPDATE_SELECTED,
+  MOVE_OBJECT,
+  MOVE_UNDO
 } from './actionTypes'
 
 export function addSpawn(spawn) {
@@ -22,5 +24,20 @@ export function updateSelected(object) {
   return {
     type: UPDATE_SELECTED,
     object
+  }
+}
+
+export function moveObject(object, from, to) {
+  return {
+    type: MOVE_OBJECT,
+    object,
+    from,
+    to
+  }
+}
+
+export function moveUndo() {
+  return {
+    type: MOVE_UNDO
   }
 }

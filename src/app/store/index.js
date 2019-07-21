@@ -2,14 +2,17 @@ import { createStore } from 'redux'
 import {
   ADD_SPAWN,
   CHANGE_SCENE,
-  UPDATE_SELECTED
+  UPDATE_SELECTED,
+  MOVE_OBJECT,
+  MOVE_UNDO
 } from './actionTypes'
 
 let defaultState = {
   spawn: [],
   editor: {
     selected: null,
-    scene: null
+    scene: null,
+    moves: []
   }
 }
 
@@ -32,6 +35,20 @@ function storeReducers(state = defaultState, action) {
         editor: {
           ...state.editor,
           selected: action.object
+        }
+      })
+    case MOVE_OBJECT:
+      return Object.assign({}, state, {
+        editor: {
+          ...state.editor,
+          moves: [...state.editor.moves, {object: action.object, from: action.from, to: action.to}]
+        }
+      })
+    case MOVE_UNDO:
+      return Object.assign({}, state, {
+        editor: {
+          ...state.editor,
+          moves: state.editor.moves.slice(0, -1)
         }
       })
     default:

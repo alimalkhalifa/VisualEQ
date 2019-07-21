@@ -22,6 +22,7 @@ class WLDParser {
       let fragment = wld[fragIndex]
       if (fragment.type === "Mesh") {
         for (let mesh of this.loadWLDMesh(fragment, fragIndex, wld, s3d)) {
+          mesh.userData.levelgeometry = true
           scene.add(mesh)
         }
       }
@@ -34,6 +35,7 @@ class WLDParser {
         let mesh = wldobj[wldobj[meshRef].mesh]
         let meshes = []
         for (mesh of this.loadWLDMesh(mesh, meshRef, wldobj, objs3d)) {
+          mesh.userData.staticobject = true
           meshes.push(mesh.toJSON())
         }
         meshCache[wldFrag.name] = meshes

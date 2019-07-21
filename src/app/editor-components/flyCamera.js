@@ -170,10 +170,10 @@ export default class Camera {
         this.cameraMovementInput.right = 0
         break;
       case 81: // Q
-        this.cameraMovementInput.up = 0
+        this.cameraMovementInput.down = 0
         break;
       case 69: // E
-        this.cameraMovementInput.down = 0
+        this.cameraMovementInput.up = 0
         break;
       case 16: // Shift
         this.doubleSpeed = false

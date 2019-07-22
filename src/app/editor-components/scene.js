@@ -5,6 +5,7 @@ import FlyCamera from './flyCamera'
 import Selector from './selector'
 import InfoBox from './infoBox';
 import EventEmitter from 'events';
+import pako from 'pako'
 import raceCodes from '../../common/constants/raceCodeConstants.json'
 import { Quaternion } from 'three';
 
@@ -77,9 +78,12 @@ export default class Scene extends EventEmitter {
 
   updateZoneS3D() {
     fetch(`/zone/s3d/${this.zoneShortName}`).then(res => {
-      return res.json()
+      console.log(res)
+      return res.text()
     }).then(res => {
-      //console.log(res)
+      console.log(res)
+      res = JSON.parse(pako.inflate(res, { to: "string" }))
+      console.log(res)
       let objectLoader = new THREE.ObjectLoader()
       let world = objectLoader.parse(res.scene)
       for (let w of world.children) {

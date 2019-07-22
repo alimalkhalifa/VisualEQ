@@ -1,9 +1,10 @@
-var express = require('express')
-var route = express.Router()
-var database = require('../database.js')
-var loadS3D = require('../loaders/s3d.js')
-var fs = require('fs')
-var { WLDParser } = require('../../common/helpers/wldParser')
+const express = require('express')
+const route = express.Router()
+const database = require('../database.js')
+const loadS3D = require('../loaders/s3d.js')
+const fs = require('fs')
+const pako = require('pako')
+const { WLDParser } = require('../../common/helpers/wldParser')
 
 route.use('/file', express.static('zones'))
 
@@ -13,8 +14,11 @@ route.get('/s3d/:shortname', (req, res) => {
   fs.readFile('./graphics_cache/globals.json', 'utf-8', (err, globaldata) => {
     fs.exists(`./graphics_cache/${req.params.shortname}.json`, exists => {
       if (exists) {
+        console.log('sending cached data')
         fs.readFile(`graphics_cache/${req.params.shortname}.json`, 'utf-8', (err, data) => {
-          res.send(mergeData(JSON.parse(data), JSON.parse(globaldata)))
+          let body = pako.deflate(JSON.stringify(mergeData(JSON.parse(data), JSON.parse(globaldata))), { to: 'string' })
+          res.send(body)
+          console.log('Sent packet')
         })
       } else {
         loadS3D(`${req.params.shortname}.s3d`, zone => {

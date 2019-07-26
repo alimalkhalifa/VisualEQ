@@ -11,36 +11,36 @@ route.use('/file', express.static('zones'))
 route.get('/s3d/:shortname', (req, res) => {
   const wldParser = new WLDParser()
   console.log("Got S3D request")
-  fs.readFile('./graphics_cache/globals.json', 'utf-8', (err, globaldata) => {
-    fs.exists(`./graphics_cache/${req.params.shortname}.json`, exists => {
-      if (exists) {
-        console.log('sending cached data')
-        fs.readFile(`graphics_cache/${req.params.shortname}.json`, 'utf-8', (err, data) => {
-          let body = pako.deflate(JSON.stringify(mergeData(JSON.parse(data), JSON.parse(globaldata))), { to: 'string' })
-          res.send(body)
-          console.log('Sent packet')
-        })
-      } else {
-        loadS3D(`${req.params.shortname}.s3d`, zone => {
-          loadS3D(`${req.params.shortname}_obj.s3d`, obj => {
-            loadS3D(`${req.params.shortname}_chr.s3d`, chr => {
-              loadS3D(`global_chr.s3d`, globalchr => {
-                wldParser.createScene(zone, obj).then(scene => {
-                  wldParser.loadChrMeshes([chr/*, globalchr*/]).then(characters => {
-                    console.log('sending')
-                    let world = {...scene, characters: characters.characters, chrtextures: characters.textures}
-                    res.send(mergeData(world, globaldata))
-                    fs.writeFile(`graphics_cache/${req.params.shortname}.json`, JSON.stringify(world), err => {
-                      if (err) throw new Error(err)
-                    })
+  
+  fs.exists(`./graphics_cache/${req.params.shortname}.bin`, exists => {
+    if (exists) {
+      console.log('sending cached data')
+      fs.readFile(`graphics_cache/${req.params.shortname}.bin`, 'utf-8', (err, data) => {
+        //let body = pako.deflate(JSON.stringify(mergeData(JSON.parse(data), JSON.parse(globaldata))), { to: 'string' })
+        res.send(data)
+        console.log('Sent packet')
+      })
+    } else {
+      loadS3D(`${req.params.shortname}.s3d`, zone => {
+        loadS3D(`${req.params.shortname}_obj.s3d`, obj => {
+          loadS3D(`${req.params.shortname}_chr.s3d`, chr => {
+            fs.readFile('./graphics_cache/globals.json', 'utf-8', (err, globaldata) => {
+              wldParser.createScene(zone, obj).then(scene => {
+                wldParser.loadChrMeshes([chr]).then(characters => {
+                  console.log('sending')
+                  let world = {...scene, characters: characters.characters, chrtextures: characters.textures}
+                  let body = pako.deflate(JSON.stringify(mergeData(world, globaldata)), { to: "string" })
+                  res.send(body)
+                  fs.writeFile(`graphics_cache/${req.params.shortname}.bin`, body, err => {
+                    if (err) throw new Error(err)
                   })
                 })
               })
             })
           })
         })
-      }
-    })
+      })
+    }
   })
 })
 

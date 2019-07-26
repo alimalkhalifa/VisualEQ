@@ -78,12 +78,9 @@ export default class Scene extends EventEmitter {
 
   updateZoneS3D() {
     fetch(`/zone/s3d/${this.zoneShortName}`).then(res => {
-      console.log(res)
       return res.text()
     }).then(res => {
-      console.log(res)
       res = JSON.parse(pako.inflate(res, { to: "string" }))
-      console.log(res)
       let objectLoader = new THREE.ObjectLoader()
       let world = objectLoader.parse(res.scene)
       for (let w of world.children) {
@@ -136,8 +133,8 @@ export default class Scene extends EventEmitter {
     if (alphaBuffer) {
       let textureType = String.fromCharCode(alphaBuffer.readInt8(0)) + String.fromCharCode(alphaBuffer.readInt8(1))
       if (textureType === 'BM' && textureInfo.masked) {
-        let bSize = alphaBuffer.readUInt16LE(2)
-        let bOffset = alphaBuffer.readUInt16LE(10)
+        //let bSize = alphaBuffer.readUInt16LE(2)
+        //let bOffset = alphaBuffer.readUInt16LE(10)
         let bHSize = alphaBuffer.readUInt16LE(14)
         let bDepth = alphaBuffer.readInt8(28)
         let bColorTableCount = alphaBuffer.readUInt16LE(46) || Math.pow(2, bDepth)

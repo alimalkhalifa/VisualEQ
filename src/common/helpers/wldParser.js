@@ -101,9 +101,6 @@ class WLDParser {
     let textures = {}
     for(let s3d of chrs) {
       let chr = s3d.wld
-      fs.writeFile('ss.json', JSON.stringify(chr, null, 2), err => {
-        if (err) throw new Error(err)
-      })
       for (let fragIndex in chr) {
         let fragment = chr[fragIndex]
         if (fragment.type === "StaticModelRef") {
@@ -226,84 +223,9 @@ class WLDParser {
         geometry.addAttribute('normal', new THREE.BufferAttribute(new Float32Array(normals), 3))
         geometry.addAttribute('uv', new THREE.BufferAttribute(new Float32Array(uvs), 2))
         geometry.computeBoundingBox()
-        /*
-        let material = null
-        let textureFile = fragment.polygonTextures[polygonTexIndex].texturePaths ? fragment.polygonTextures[polygonTexIndex].texturePaths[0].files[0].toLowerCase() : null
-        if (textureFile) {
-          if (!this.material_cache[textureFile]) {
-            let textureFire = fragment.polygonTextures[polygonTexIndex].texturePaths[0].files[0].toLowerCase().indexOf("fire") !== -1
-            let textureRaw = s3d.files[fragment.polygonTextures[polygonTexIndex].texturePaths[0].files[0].toLowerCase()]
-            //let textureBuffer = textureRaw ? new Buffer().from(textureRaw) : null
-            //let alphaBuffer = textureRaw ? new Buffer().from(textureRaw) : null
-            let textureBuffer = textureRaw
-            let alphaBuffer = textureRaw
-            if (alphaBuffer) {
-              let textureType = String.fromCharCode(alphaBuffer.readInt8(0)) + String.fromCharCode(alphaBuffer.readInt8(1))
-              if (textureType === 'BM' && fragment.polygonTextures[polygonTexIndex].texture.masked) {
-                let bSize = alphaBuffer.readUInt16LE(2)
-                let bOffset = alphaBuffer.readUInt16LE(10)
-                let bHSize = alphaBuffer.readUInt16LE(14)
-                let bDepth = alphaBuffer.readInt8(28)
-                let bColorTableCount = alphaBuffer.readUInt16LE(46) || Math.pow(2, bDepth)
-                let bColorTableOffset = 14 + bHSize
-                let bTransparentIndex = 0//alphaBuffer.readUInt8(bOffset)
-                for (let i = 0; i < bColorTableCount; i++) {
-                  let bNewColor = i === bTransparentIndex ? 0x00 : 0xFF
-                  alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + i * 4)
-                  alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + 1 + i * 4)
-                  alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + 2 + i * 4)
-                  alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + 3 + i * 4)
-                }
-              }
-            }
-            let textureData = textureBuffer ? textureBuffer.toString('base64') : null
-            let textureURI = `data:image/bmp;base64,${textureData}`
-            let alphaData = alphaBuffer ? alphaBuffer.toString('base64') : null
-            let alphaURI = `data:image/bmp;base64,${alphaData}`
-            let texture = new THREE.Texture()
-            texture.wrapS = THREE.RepeatWrapping
-            texture.wrapT = THREE.RepeatWrapping
-            texture.image = textureURI
-            /*let alpha
-            if (textureFire) {
-              alpha = THREE.ImageUtils.loadTexture(textureURI)
-              alpha.format = THREE.LuminanceFormat
-            } else {
-              alpha = THREE.ImageUtils.loadTexture(alphaURI)
-            }
-            alpha.wrapS = THREE.RepeatWrapping
-            alpha.wrapT = THREE.RepeatWrapping
-            */
-            /*this.material_cache[textureFile] =  new THREE.MeshLambertMaterial({
-              //map: texture,
-              color: new THREE.Color(Math.random(), Math.random(), Math.random()).getHex(),
-              //...(fragment.polygonTextures[polygonTexIndex].texture.masked ? {alphaMap: alpha} : {}),
-              //...((!fragment.polygonTextures[polygonTexIndex].texture.apparentlyNotTransparent || fragment.polygonTextures[polygonTexIndex].texture.masked) ? {transparent: 1} : {}),
-              ...(!fragment.polygonTextures[polygonTexIndex].texture.apparentlyNotTransparent ? {opacity: 0} : {}),
-              alphaTest: 0.8
-            })
-            console.log(this.material_cache[textureFile].toJSON())
-            /*
-            console.log(`${textureFile}:
-              notTransparent(${fragment.polygonTextures[polygonTexIndex].texture.notTransparent})
-              masked(${fragment.polygonTextures[polygonTexIndex].texture.masked})
-              semitransparentNoMask(${fragment.polygonTextures[polygonTexIndex].texture.semitransparentNoMask})
-              semitransparentMask(${fragment.polygonTextures[polygonTexIndex].texture.semitransparentMask})
-              notSemitransparentMask(${fragment.polygonTextures[polygonTexIndex].texture.notSemitransparentMask})
-              apparentlyNotTransparent(${fragment.polygonTextures[polygonTexIndex].texture.apparentlyNotTransparent})
-            `)
-            */
-          //}
-          //material = this.material_cache[textureFile]
-        //}
         var mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
           color: new THREE.Color(Math.random(), Math.random(), Math.random()).getHex()
         }))
-        /*mesh.position.set(x, y, z)
-        mesh.scale.set(scaleX, scaleX, scaleY)
-        mesh.rotateOnAxis(new THREE.Vector3(0, 0, 1), THREE.Math.degToRad(rotZ / (512/360)))
-        mesh.rotateOnAxis(new THREE.Vector3(1, 0, 0), THREE.Math.degToRad(rotY / (512/360)))
-        mesh.rotateOnAxis(new THREE.Vector3(0, 1, 0), THREE.Math.degToRad(rotX / (512/360)))*/
         mesh.userData.fragIndex = fragIndex
         mesh.userData.fragment = fragment
         mesh.userData.textureFile = fragment.polygonTextures[polygonTexIndex].texturePaths ? fragment.polygonTextures[polygonTexIndex].texturePaths[0].files[0].toLowerCase() : null

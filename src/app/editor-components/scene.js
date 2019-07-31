@@ -224,10 +224,12 @@ export default class Scene extends EventEmitter {
           }
         }
       }
-      let geo = new THREE.SphereGeometry(2, 16, 16)
-      let mat = new THREE.MeshLambertMaterial({color: new THREE.Color(1, 1, 0).getHex(), transparent: true, opacity: 0.2, alphaTest: 0.2})
+      let geo = new THREE.CylinderGeometry(2, 2, 6)
+      geo.rotateX(THREE.Math.degToRad(90))
+      geo.translate(0, 0, 1)
+      let mat = new THREE.MeshLambertMaterial({color: new THREE.Color(1, 1, 0).getHex(), transparent: true, opacity: 0, alphaTest: 0})
       let base = new THREE.Mesh(geo, mat)
-      base.position.set(spawn.y, spawn.x, spawn.z)
+      base.position.set(spawn.y, spawn.x, spawn.z - 3.125)
       base.userData.selectable = true
       base.userData.type = "SpawnPoint"
       base.userData.spawnInfo = spawn

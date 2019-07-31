@@ -7,7 +7,7 @@ export default class InfoBox {
   }
 
   updateInfoBox() {
-    let selected = store.getState().editor.selected
+    let selected = store.getState().selected
     if (!selected) {
       this.domElement.style.visibility = "hidden"
       return

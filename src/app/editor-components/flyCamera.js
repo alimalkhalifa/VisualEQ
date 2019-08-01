@@ -3,8 +3,9 @@ import { store } from '../store'
 
 export default class Camera {
   constructor() {
-    this.windowSizeX = window.innerWidth
-    this.windowSizeY = window.innerHeight
+    this.viewport = document.getElementById("viewport")
+    this.windowSizeX = this.viewport.clientWidth
+    this.windowSizeY = this.viewport.clientHeight
     this.object = new THREE.PerspectiveCamera( 55, this.windowSizeX / this.windowSizeY, 1, 1000 );
     this.object.up.set(0,0,1);
     this.cameraSpeed = 100
@@ -120,9 +121,9 @@ export default class Camera {
   }
 
   onViewportResize() {
-    this.windowSizeX = window.innerWidth
-    this.windowSizeY = window.innerHeight
-    this.object.aspect = this.windowSizeX / window.innerHeight
+    this.windowSizeX = this.viewport.clientWidth
+    this.windowSizeY = this.viewport.clientHeight
+    this.object.aspect = this.windowSizeX / this.windowSizeY
     this.object.updateProjectionMatrix()
   }
 

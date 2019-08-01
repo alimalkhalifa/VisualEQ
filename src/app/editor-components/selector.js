@@ -22,10 +22,12 @@ export default class Selector {
     this.objectOrigin = new THREE.Vector3()
     this.objectHeight = 0
     this.holdCtrl = false
+    this.viewport = null
     this.connect()
   }
 
   connect() {
+    this.viewport = document.getElementById("viewport")
     document.addEventListener('mousedown', this.onMouseDown.bind(this))
     document.addEventListener('mouseup', this.onEndMouseDown.bind(this))
     document.addEventListener('mousemove', this.onMouseMove.bind(this))
@@ -94,8 +96,8 @@ export default class Selector {
   }
 
   onMouseMove(event) {
-    this.mousePos.x = ( event.clientX / window.innerWidth ) * 2 - 1
-    this.mousePos.y = - ( event.clientY / window.innerHeight ) * 2 + 1
+    this.mousePos.x = ( event.clientX / this.viewport.clientWidth ) * 2 - 1
+    this.mousePos.y = - ( event.clientY / this.viewport.clientHeight ) * 2 + 1
 
     if (this.mouseDrag && this.dragHandle) {
       let intersections = this.raycastFromCamera()

@@ -22,6 +22,7 @@ export default class Scene extends EventEmitter {
     this.raycaster = null
     this.zoneInfo = {}
     this.renderer = null
+    this.viewport = null
     this.loadingContainer = null
     this.material_cache = {}
     this.chr_meshCache = {}
@@ -53,8 +54,9 @@ export default class Scene extends EventEmitter {
     this.updateZoneS3D()
 
     this.renderer = new THREE.WebGLRenderer()
-    this.renderer.setSize( window.innerWidth, window.innerHeight )
-    document.getElementById('viewport').appendChild( this.renderer.domElement )
+    this.viewport = document.getElementById('viewport')
+    this.renderer.setSize( this.viewport.clientWidth, this.viewport.clientHeight )
+    this.viewport.appendChild( this.renderer.domElement )
     window.addEventListener('resize', this.onViewportResize.bind(this))
     this.animate()
   }
@@ -252,6 +254,6 @@ export default class Scene extends EventEmitter {
   }
 
   onViewportResize() {
-    this.renderer.setSize( window.innerWidth, window.innerHeight )
+    this.renderer.setSize( this.viewport.clientWidth, this.viewport.clientHeight )
   }
 }

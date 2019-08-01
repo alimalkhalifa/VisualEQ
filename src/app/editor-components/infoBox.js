@@ -8,8 +8,8 @@ export default class InfoBox {
 
   updateInfoBox() {
     let selected = store.getState().selected
-    if (!selected) {
-      this.domElement.style.visibility = "hidden"
+    if (selected === null) {
+      this.emptyInfo()
       return
     }
     switch (selected.userData.type) {
@@ -19,7 +19,6 @@ export default class InfoBox {
       default:
         this.emptyInfo()
     }
-    this.domElement.style.visibility = "visible"
   }
 
   emptyInfo() {
@@ -119,6 +118,7 @@ export default class InfoBox {
     <div class="card-text">
       Name: ${npc.name}<br/>
       Race: ${npc.race}<br/>
+      Helm: ${npc.helmtexture}<br/>
     </div>
     `
     this.domElement.appendChild(card)

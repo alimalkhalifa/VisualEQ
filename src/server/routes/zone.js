@@ -29,7 +29,7 @@ route.get('/s3d/:shortname', (req, res) => {
                 wldParser.loadChrMeshes([chr]).then(characters => {
                   console.log('sending')
                   let world = {...scene, characters: characters.characters, chrtextures: characters.textures}
-                  let body = pako.deflate(JSON.stringify(mergeData(world, globaldata)), { to: "string", level: 9 })
+                  let body = pako.deflate(JSON.stringify(mergeData(world, JSON.parse(globaldata))), { to: "string", level: 9 })
                   res.send(body)
                   fs.writeFile(`graphics_cache/${req.params.shortname}.bin`, body, err => {
                     if (err) throw new Error(err)

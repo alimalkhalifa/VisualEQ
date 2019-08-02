@@ -119,6 +119,7 @@ export default class InfoBox {
       Name: ${npc.name}<br/>
       Race: ${npc.race}<br/>
       Helm: ${npc.helmtexture}<br/>
+      Size: ${npc.size}<br/>
     </div>
     `
     this.domElement.appendChild(card)

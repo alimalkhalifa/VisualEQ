@@ -116,7 +116,9 @@ class WLDParser {
           for (let i = 0; i < Object.keys(chr).length; i++) {
             let f = chr[i]
             if (f.type === "Mesh" && f.name.indexOf(raceCode) !== -1) {
-              cache = cache.concat(this.loadWLDMesh(f, i, chr, s3d, entries))
+              let helmchr = f.name.substr(3, f.name.indexOf('_') - 3)
+              let helm = helmchr.length == 0 ? "BASE" : helmchr.indexOf("HE") !== -1 ? helmchr : `BO${helmchr}`
+              cache = cache.concat({helm, mesh: this.loadWLDMesh(f, i, chr, s3d, entries)})
             }
           }
           characters[raceCode] = cache

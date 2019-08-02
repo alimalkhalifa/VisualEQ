@@ -28,18 +28,44 @@
 			}
 			#container {
 				display: flex;
+				flex-flow: column;
+				width: 95vw;
+				height: 95vh;
+			}
+			#menu-container {
+				display: flex;
 				flex-flow: row;
-				width: 100vw;
-				height: 100vh;
-				background: green;
+				width: 100%;
+				height: 24px;
+				background: #27292b;
+				color: white;
+			}
+			#non-menu-container{
+				display: flex;
+				flex-flow: row;
+				width: 100%;
+				height: 100%;
+			}
+			#left-container {
+				display: flex;
+				flex-flow: column;
+				width: 80%;
+				height: 100%;
 			}
 			#viewport {
 				width: 100%;
 				height: 100%;
+				padding: 0;
+				margin: 0;
+			}
+			#item-selector {
+				width: 100%;
+				min-height: 20rem;
+				background: #27292b;
 			}
 			#info-box {
 				min-width: 400px;
-				width: 30%;
+				width: 20%;
 				height: 100%;
 				background: #27292b;
 				color: white;
@@ -52,8 +78,14 @@
 	<body>
 		<div id="loading-container"><div id="loading">Loading...</div></div>
 		<div id="container">
-			<div id="viewport"></div>
-			<div id="info-box">Empty</div>
+			<div id="menu-container">File Edit Help</div>
+			<div id="non-menu-container">
+				<div id="left-container">
+					<div id="viewport"></div>
+					<div id="item-selector"></div>
+				</div>
+				<div id="info-box">Empty</div>
+			</div>
 		</div>
 		<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>

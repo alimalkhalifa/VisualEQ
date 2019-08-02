@@ -83,6 +83,7 @@ export default class Scene extends EventEmitter {
       return res.text()
     }).then(res => {
       res = JSON.parse(pako.inflate(res, { to: "string" }))
+      console.log(res)
       let objectLoader = new THREE.ObjectLoader()
       let world = objectLoader.parse(res.scene)
       for (let w of world.children) {
@@ -101,10 +102,22 @@ export default class Scene extends EventEmitter {
       this.scene.add(world)
       for (let c in res.characters) {
         let cache = []
-        for (let m of res.characters[c]) {
-          let mesh = objectLoader.parse(m)
-          mesh.material = this.loadMaterial(mesh.userData.textureFile, res.chrtextures, mesh.userData.texture.texture)
-          cache.push(mesh)
+        for (let h of res.characters[c]) {
+          if (h.mesh.length > 0) {
+            let mesh = new THREE.Group()
+            let min = new THREE.Vector3()
+            let max = new THREE.Vector3()
+            for (let m of h.mesh) {
+              let part = objectLoader.parse(m)
+              part.material = this.loadMaterial(part.userData.textureFile, res.chrtextures, part.userData.texture.texture)
+              mesh.add(part)
+              let geo = part.geometry
+              geo.computeBoundingBox()
+              min.min(geo.boundingBox.min)
+              max.max(geo.boundingBox.max)
+            }
+            cache.push({helm: h.helm, mesh, min, max})
+          }
         }
         this.chr_meshCache[c] = cache
       }
@@ -226,10 +239,14 @@ export default class Scene extends EventEmitter {
           }
         }
       }
-      let geo = new THREE.CylinderGeometry(2, 2, 6)
+      let npc = npcTypes[0]
+      let genderName = npc.gender === 0 ? 'male' : npc.gender === 1 ? 'female' : 'neutral'
+      let raceCode = raceCodes[npc.race][genderName]
+
+      let geo = new THREE.CylinderGeometry(2 * npc.size/6.0, 2 * npc.size/6.0, 6 * npc.size/6.0)
       geo.rotateX(THREE.Math.degToRad(90))
       geo.translate(0, 0, 1)
-      let mat = new THREE.MeshLambertMaterial({color: new THREE.Color(1, 1, 0).getHex(), transparent: true, opacity: 0, alphaTest: 0})
+      let mat = new THREE.MeshLambertMaterial({color: new THREE.Color(1, 1, 0).getHex(), transparent: true, opacity: 0.2, alphaTest: 0})
       let base = new THREE.Mesh(geo, mat)
       base.position.set(spawn.y, spawn.x, spawn.z - 3.125)
       base.userData.selectable = true
@@ -238,15 +255,34 @@ export default class Scene extends EventEmitter {
       base.userData.spawngroup = spawngroup
       base.userData.spawnentry = spawnentry
       base.userData.npcTypes = npcTypes
-      let npc = npcTypes[0]
-      let genderName = npc.gender === 0 ? 'male' : npc.gender === 1 ? 'female' : 'neutral'
-      let raceCode = raceCodes[npc.race][genderName]
+      base.userData.size = npc.size
+      base.userData.offset = 1
+      
       if (this.chr_meshCache[raceCode]) {
-        for (let mesh of this.chr_meshCache[raceCode]) {
-          let newmesh = mesh.clone().rotateOnAxis(new THREE.Vector3(0,0,1), THREE.Math.degToRad(spawn.heading - 90))
-          if (npc.texture > 0) newmesh.material = this.loadMaterial(newmesh.userData.textureFile, this.chrtextures, newmesh.userData.texture.texture, npc.texture)
-          base.add(newmesh) 
+        let char = this.chr_meshCache[raceCode]
+        let helm = npc.helmtexture < 10 ? `HE0${parseInt(npc.helmtexture)}` : `HE${parseInt(npc.helmtexture)}`
+        let min = new THREE.Vector3()
+        let max = new THREE.Vector3()
+        let group = new THREE.Group()
+        for (let mesh of char) {
+          if (mesh.helm === "BASE" || mesh.helm === helm) {
+            let newmesh = mesh.mesh.clone().rotateOnAxis(new THREE.Vector3(0,0,1), THREE.Math.degToRad(spawn.heading - 90))
+            if (npc.texture > 0) {
+              for (let c of newmesh.children) {
+                c.material = this.loadMaterial(c.userData.textureFile, this.chrtextures, c.userData.texture.texture, npc.texture)
+              }
+            }
+            group.add(newmesh)
+            min.min(mesh.min)
+            max.max(mesh.max)
+          }
         }
+        let height = max.z - min.z
+        let center = (min.z + max.z) / 2
+        base.geometry.translate(0, 0, center - 1)
+        group.scale.set(npc.size / height, npc.size / height, npc.size / height)
+        base.userData.offset = center
+        base.add(group)
       }
       this.scene.add(base)
     }

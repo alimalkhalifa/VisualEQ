@@ -17,7 +17,7 @@ export default class Selector {
     this.ghandleClickCount = 0
     this.ghandleClickCountReset = null
     this.resetDoubleClickDelay = 1000 //ms
-    this.mouseDragThreshold = 1
+    this.mouseDragThreshold = 2
     this.objectStartPos = new THREE.Vector3()
     this.objectOrigin = new THREE.Vector3()
     this.objectHeight = 0
@@ -51,7 +51,7 @@ export default class Selector {
               let selectedObject = store.getState().selected
               let floor = this.getObjectPositionOnFloor(selectedObject)
               if (!floor.err) {
-                selectedObject.position.copy(floor.pos.add(new THREE.Vector3(0, 0, 2)))
+                selectedObject.position.copy(floor.pos.add(new THREE.Vector3(0, 0, selectedObject.userData.size / 2 - selectedObject.userData.offset)))
                 this.objectOrigin.copy(selectedObject.position)
                 this.setGHandleToFloor(selectedObject)
               } else {
@@ -59,7 +59,7 @@ export default class Selector {
                 if (!ceiling.err) {
                   let floor2 = this.getPointPositionOnLastFloor(ceiling.pos)
                   if (!floor2.err) {
-                    selectedObject.position.copy(floor2.pos.add(new THREE.Vector3(0, 0, 2)))
+                    selectedObject.position.copy(floor2.pos.add(new THREE.Vector3(0, 0, selectedObject.userData.size / 2 - selectedObject.userData.offset)))
                     this.objectOrigin.copy(selectedObject.position)
                     this.setGHandleToFloor(selectedObject)
                   }
@@ -76,7 +76,9 @@ export default class Selector {
             this.dragPlane = new THREE.Mesh(new THREE.PlaneGeometry(this.dragPlaneSize, this.dragPlaneSize), new THREE.MeshBasicMaterial({color: 0xFFFF00, transparent: true, opacity: 0, alphaTest: 0.1}))
             this.dragPlane.userData.dragplane = true
             this.dragPlane.position.copy(new THREE.Vector3().copy(i.object.position).add(store.getState().selected.position))
-            if (i.object.userData.zhandle) this.dragPlane.rotateOnAxis(new THREE.Vector3(1, 0, 0), THREE.Math.degToRad(90))
+            if (i.object.userData.zhandle) {
+              this.dragPlane.rotateOnAxis(new THREE.Vector3(1, 0, 0), THREE.Math.degToRad(90))
+            }
             store.getState().scene.scene.add(this.dragPlane)
           }
           this.mouseDrag = true
@@ -96,14 +98,15 @@ export default class Selector {
   }
 
   onMouseMove(event) {
-    this.mousePos.x = ( event.clientX / this.viewport.clientWidth ) * 2 - 1
-    this.mousePos.y = - ( event.clientY / this.viewport.clientHeight ) * 2 + 1
+    let rect = this.viewport.getBoundingClientRect()
+    this.mousePos.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+    this.mousePos.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
 
     if (this.mouseDrag && this.dragHandle) {
       let intersections = this.raycastFromCamera()
       for (let i of intersections) {
         if ((this.dragHandle.userData.ghandle && i.object.userData.levelgeometry) || (!this.dragHandle.userData.ghandle && i.object.userData.dragplane)) {
-          if (this.dragOffsetMet || i.point.distanceTo(new THREE.Vector3().copy(this.objectOrigin).add(this.dragHandle.position)) > this.mouseDragThreshold * 3) {
+          if (this.dragOffsetMet || i.point.distanceTo(new THREE.Vector3().copy(this.objectOrigin).add(this.dragHandle.position)) > this.mouseDragThreshold) {
             this.dragOffsetMet = true
             store.getState().selected.position.copy(new THREE.Vector3().copy(this.objectOrigin).add(i.point.sub(this.dragHandle.position).sub(this.objectOrigin).multiply(this.dragHandle.userData.dragScale)))
             this.setGHandleToFloor(store.getState().selected)
@@ -188,8 +191,6 @@ export default class Selector {
       ghandle.userData.draggable = true
       ghandle.userData.ghandle = true
       ghandle.userData.dragScale = new THREE.Vector3(1, 1, 1)
-      let floor = this.getObjectPositionOnFloor(object)
-      if (!floor.err) ghandle.position.set(0, 0, -floor.h)
       let xlinegeo = new THREE.Geometry()
       xlinegeo.vertices.push(new THREE.Vector3(0, 0, 0))
       xlinegeo.vertices.push(new THREE.Vector3(this.handleOffset, 0, 0))
@@ -204,11 +205,12 @@ export default class Selector {
       let zline = new THREE.Line(zlinegeo, new THREE.MeshBasicMaterial({color: 0x0000FF}))
       let ringgeo = new THREE.RingGeometry(3, 4)
       let ring = new THREE.Mesh(ringgeo, new THREE.MeshBasicMaterial({color: 0xFFFF00}))
-      ring.position.copy(new THREE.Vector3(0, 0, -1.9))
+      ring.position.copy(new THREE.Vector3(0, 0, -object.userData.size/2 + object.userData.offset + 0.1))
       object.userData.handles = [xhandle, yhandle, zhandle, ghandle, xline, yline, zline, ring]
       for (let h of object.userData.handles) {
         object.add(h)
       }
+      this.setGHandleToFloor(object)
     }
   }
 
@@ -314,6 +316,10 @@ export default class Selector {
     let move = store.getState().moves.slice(-1)
     if (move.length > 0) {
       move[0].object.position.copy(move[0].from)
+      if (store.getState().selected === move[0].object) {
+        this.setGHandleToFloor(store.getState().selected)
+        this.objectOrigin.copy(store.getState().selected.position)
+      }
       store.dispatch(moveUndo())
     }
   }

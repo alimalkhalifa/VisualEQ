@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 import { store } from '../store';
 import { updateSelected, moveObject, moveUndo } from '../store/actions';
-import { Quaternion } from 'three';
 
 export default class Selector {
   constructor() {
@@ -23,15 +22,27 @@ export default class Selector {
     this.objectHeight = 0
     this.holdCtrl = false
     this.viewport = null
+    this.onMouseDown = this.onMouseDown.bind(this)
+    this.onEndMouseDown = this.onEndMouseDown.bind(this)
+    this.onMouseMove = this.onMouseMove.bind(this)
+    this.onKeyPress = this.onKeyPress.bind(this)
     this.connect()
   }
 
   connect() {
     this.viewport = document.getElementById("viewport")
-    document.addEventListener('mousedown', this.onMouseDown.bind(this))
-    document.addEventListener('mouseup', this.onEndMouseDown.bind(this))
-    document.addEventListener('mousemove', this.onMouseMove.bind(this))
-    document.addEventListener('keypress', this.onKeyPress.bind(this))
+    document.addEventListener('mousedown', this.onMouseDown)
+    document.addEventListener('mouseup', this.onEndMouseDown)
+    document.addEventListener('mousemove', this.onMouseMove)
+    document.addEventListener('keypress', this.onKeyPress)
+  }
+
+  disconnect() {
+    this.nullSelectedObject()
+    document.removeEventListener('mousedown', this.onMouseDown)
+    document.removeEventListener('mouseup', this.onEndMouseDown)
+    document.removeEventListener('mousemove', this.onMouseMove)
+    document.removeEventListener('keypress', this.onKeyPress)
   }
 
   onMouseDown() {

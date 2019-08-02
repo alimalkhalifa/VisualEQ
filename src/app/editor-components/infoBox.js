@@ -3,7 +3,15 @@ import { store } from "../store";
 export default class InfoBox {
   constructor() {
     this.domElement = document.getElementById('info-box')
-    store.subscribe(() => this.updateInfoBox())
+    this.connect()
+  }
+
+  connect() {
+    this.unsubscribe = store.subscribe(() => this.updateInfoBox())
+  }
+
+  disconnect() {
+    this.unsubscribe()
   }
 
   updateInfoBox() {

@@ -44,22 +44,6 @@ route.get('/s3d/:shortname', (req, res) => {
   })
 })
 
-route.get('/s3d_obj/:shortname', (req, res) => {
-  console.log("Got S3D_OBJ request")
-  loadS3D(`${req.params.shortname}_obj.s3d`, zone => {
-    console.log("Sending back S3D_OBJ response")
-    res.send(zone)
-  })
-})
-
-route.get('/s3d_chr/:shortname', (req, res) => {
-  console.log("Got S3D_CHR request")
-  loadS3D(`${req.params.shortname}_chr.s3d`, chr => {
-    console.log("Sending back S3D_CHR response")
-    res.send(chr)
-  })
-})
-
 route.get('/shortname/:shortname', (req, res) => {
   database.getConnection((err, connection) => {
     if (err) {
@@ -77,18 +61,22 @@ route.get('/shortname/:shortname', (req, res) => {
           if (err) throw new Error(err)
           connection.query(`SELECT * FROM spawnentry WHERE spawngroupID IN (${spawngroupIDs})`, (err, spawnentry) => {
             if (err) throw new Error(err)
-            let npcTypes = []
+            let npcTypesIds = []
             for (let s of spawnentry) {
-              npcTypes.push(s.npcID)
+              npcTypesIds.push(s.npcID)
             }
-            connection.query(`SELECT * FROM npc_types WHERE id IN (${npcTypes})`, (err, npcTypes) => {
+            connection.query(`SELECT * FROM npc_types WHERE id IN (${npcTypesIds})`, (err, npcTypes) => {
               if (err) throw new Error(err)
-              res.send({
-                zoneInfo,
-                spawn2,
-                spawngroup,
-                spawnentry,
-                npcTypes
+              connection.query(`SELECT * FROM npc_types_tint WHERE id IN (${npcTypesIds})`, (err, npcTypesTint) => {
+                if (err) throw new Error(err)
+                res.send({
+                  zoneInfo,
+                  spawn2,
+                  spawngroup,
+                  spawnentry,
+                  npcTypes,
+                  npcTypesTint
+                })
               })
             })
           })
@@ -104,7 +92,17 @@ route.get('/spawns/:shortname', (req, res) => {
       throw new Error("Cannot connect to database")
     }
     connection.query(`SELECT * FROM spawn2 WHERE zone = '${req.params.shortname}'`, (err, results) => {
-      if (err) throw err
+      if (err) throw new Error(err)
+      res.send(results)
+    })
+  })
+})
+
+route.get('/', (req, res) => {
+  database.getConnection((err, connection) => {
+    if (err) throw new Error('Cannot connect to database')
+    connection.query(`SELECT * FROM zone WHERE expansion = 1`, (err, results) => {
+      if (err) throw new Error(err)
       res.send(results)
     })
   })

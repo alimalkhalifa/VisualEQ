@@ -25,6 +25,14 @@ export default class Camera {
       up: 0,
       down: 0
     }
+    this.onViewportResize = this.onViewportResize.bind(this)
+    this.onPointerLockChange = this.onPointerLockChange.bind(this)
+    this.onMouseDown = this.onMouseDown.bind(this)
+    this.onKeyDown = this.onKeyDown.bind(this)
+    this.onKeyUp = this.onKeyUp.bind(this)
+    this.onMouseUp = this.onMouseUp.bind(this)
+    this.onMouseMove = this.onMouseMove.bind(this)
+    this.updateCamera = this.updateCamera.bind(this)
     this.connect()
   }
 
@@ -62,12 +70,23 @@ export default class Camera {
   }
 
   connect() {
-    window.addEventListener('resize', this.onViewportResize.bind(this))
-    document.addEventListener('pointerlockchange', this.onPointerLockChange.bind(this))
-    document.addEventListener('mousedown', this.onMouseDown.bind(this))
-    document.addEventListener('keydown', this.onKeyDown.bind(this))
-    document.addEventListener('keyup', this.onKeyUp.bind(this))
-    store.getState().scene.on('render', this.updateCamera.bind(this))
+    window.addEventListener('resize', this.onViewportResize)
+    document.addEventListener('pointerlockchange', this.onPointerLockChange)
+    document.addEventListener('mousedown', this.onMouseDown)
+    document.addEventListener('keydown', this.onKeyDown)
+    document.addEventListener('keyup', this.onKeyUp)
+    store.getState().scene.on('render', this.updateCamera)
+  }
+
+  disconnect() {
+    window.removeEventListener('resize', this.onViewportResize)
+    document.removeEventListener('pointerlockchange', this.onPointerLockChange)
+    document.removeEventListener('mousedown', this.onMouseDown)
+    document.removeEventListener('keydown', this.onKeyDown)
+    document.removeEventListener('keyup', this.onKeyUp)
+    document.removeEventListener('mouseup', this.onMouseUp)
+    document.removeEventListener('mousemove', this.onMouseMove)
+    store.getState().scene.off('render', this.updateCamera)
   }
 
   onMouseDown(event) {

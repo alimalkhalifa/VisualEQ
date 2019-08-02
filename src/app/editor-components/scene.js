@@ -7,7 +7,8 @@ import InfoBox from './infoBox';
 import EventEmitter from 'events';
 import pako from 'pako'
 import raceCodes from '../../common/constants/raceCodeConstants.json'
-import { Quaternion } from 'three';
+import { Quaternion, MeshBasicMaterial } from 'three';
+import Helper from '../helper';
 
 export default class Scene extends EventEmitter {
   constructor(zoneShortName) {
@@ -27,6 +28,7 @@ export default class Scene extends EventEmitter {
     this.material_cache = {}
     this.chr_meshCache = {}
     this.chrtextures = {}
+    this.onViewportResize = this.onViewportResize.bind(this)
     this.Init()
   }
 
@@ -57,8 +59,18 @@ export default class Scene extends EventEmitter {
     this.viewport = document.getElementById('viewport')
     this.renderer.setSize( this.viewport.clientWidth, this.viewport.clientHeight )
     this.viewport.appendChild( this.renderer.domElement )
-    window.addEventListener('resize', this.onViewportResize.bind(this))
+    window.addEventListener('resize', this.onViewportResize)
     this.animate()
+  }
+
+  dispose() {
+    window.removeEventListener('resize', this.onViewportResize)
+    this.infoBox.disconnect()
+    this.camera.disconnect()
+    this.selector.disconnect()
+    this.scene.dispose()
+    this.viewport.removeChild( this.renderer.domElement )
+    this.renderer.dispose()
   }
 
   updateZoneInfo(goToHome = false) {
@@ -71,6 +83,7 @@ export default class Scene extends EventEmitter {
       this.spawngroup = res.spawngroup
       this.spawnentry = res.spawnentry
       this.npcTypes = res.npcTypes
+      this.npcTypesTint = res.npcTypesTint
       //this.scene.fog = new THREE.Fog(new Three.COLOR(zoneInfo.fog_red, zoneInfo.fog_green, zoneInfo.fog_blue).getHEX(), zoneInfo.fog_minclip, zoneInfo.fog_maxclip)
       if (goToHome) {
         this.camera.object.position.set(this.zoneInfo.safe_y, this.zoneInfo.safe_x, this.zoneInfo.safe_z+2)
@@ -126,9 +139,22 @@ export default class Scene extends EventEmitter {
     })
   }
 
-  loadMaterial(textureName, textures, textureInfo, textureNumber = 0) {
+  loadMaterial(textureName, textures, textureInfo, textureNumber = 0, textureFace = -1) {
+    let vanillaTextureName = textureName
     if (textureNumber > 0) {
-      textureName = textureName.substr(0, textureName.indexOf('0')) + "0" + textureNumber + textureName.substr(textureName.indexOf('0') + 2)
+      if (textureNumber > 6) {
+        textureNumber -= 6
+      }
+      textureName = textureName.substr(0, textureName.indexOf('0')) + (textureNumber < 10 ? "0" + textureNumber : textureNumber) + textureName.substr(textureName.indexOf('0') + 2)
+      if (!(textureName in textures)) {
+        textureName = vanillaTextureName
+      }
+    }
+    if (textureName.indexOf('he', 3) !== -1 && (textureFace > 0 || textureFace === 0 && !(textureName in textures))) {
+      textureName = vanillaTextureName.substr(0, 7) + textureFace + vanillaTextureName.substr(8)
+      if (!(textureName in textures)) {
+        textureName = vanillaTextureName
+      }
     }
     if (this.material_cache[textureName]) return this.material_cache[textureName]
     let data = null
@@ -143,6 +169,7 @@ export default class Scene extends EventEmitter {
   loadTextureMaterial(textureName, data, textureInfo) {
     let textureFire = textureName.indexOf("fire") !== -1
     let textureRaw = data
+    if (!textureRaw) return new MeshBasicMaterial()
     let textureBuffer = new Buffer(textureRaw)
     let alphaBuffer = new Buffer(textureRaw)
     if (alphaBuffer) {
@@ -228,6 +255,7 @@ export default class Scene extends EventEmitter {
       }
       let spawnentry = []
       let npcTypes = []
+      let npcTypesTint = []
       for (let se of this.spawnentry) {
         if (se.spawngroupID === spawn.spawngroupID) {
           spawnentry.push(se)
@@ -237,24 +265,32 @@ export default class Scene extends EventEmitter {
               break
             }
           }
+          for (let n of this.npcTypesTint) {
+            if (se.npcID === n.id) {
+              npcTypesTint.push(n)
+            }
+          }
         }
       }
       let npc = npcTypes[0]
+      let npcTint = npcTypesTint[0]
+      if (npcTint && npcTint.id !== npc.id) npcTint = null
       let genderName = npc.gender === 0 ? 'male' : npc.gender === 1 ? 'female' : 'neutral'
       let raceCode = raceCodes[npc.race][genderName]
 
       let geo = new THREE.CylinderGeometry(2 * npc.size/6.0, 2 * npc.size/6.0, 6 * npc.size/6.0)
       geo.rotateX(THREE.Math.degToRad(90))
       geo.translate(0, 0, 1)
-      let mat = new THREE.MeshLambertMaterial({color: new THREE.Color(1, 1, 0).getHex(), transparent: true, opacity: 0.2, alphaTest: 0})
+      let mat = new THREE.MeshLambertMaterial({color: new THREE.Color(1, 1, 0).getHex(), transparent: true, opacity: 0, alphaTest: 0})
       let base = new THREE.Mesh(geo, mat)
-      base.position.set(spawn.y, spawn.x, spawn.z - 3.125)
+      base.position.set(spawn.y, spawn.x, spawn.z /* - Helper.getZOffset(npc.race) */) // Offset
       base.userData.selectable = true
       base.userData.type = "SpawnPoint"
       base.userData.spawnInfo = spawn
       base.userData.spawngroup = spawngroup
       base.userData.spawnentry = spawnentry
       base.userData.npcTypes = npcTypes
+      base.userData.npcTypesTint = npcTypesTint
       base.userData.size = npc.size
       base.userData.offset = 1
       
@@ -265,11 +301,16 @@ export default class Scene extends EventEmitter {
         let max = new THREE.Vector3()
         let group = new THREE.Group()
         for (let mesh of char) {
-          if (mesh.helm === "BASE" || mesh.helm === helm) {
+          if ((npc.texture <= 6 && mesh.helm === "BASE") || mesh.helm === helm || (npc.texture > 6 && mesh.helm === "01")) {
             let newmesh = mesh.mesh.clone().rotateOnAxis(new THREE.Vector3(0,0,1), THREE.Math.degToRad(spawn.heading - 90))
-            if (npc.texture > 0) {
+            if (npc.texture > 0 || npc.face > 0) {
               for (let c of newmesh.children) {
-                c.material = this.loadMaterial(c.userData.textureFile, this.chrtextures, c.userData.texture.texture, npc.texture)
+                c.material = this.loadMaterial(c.userData.textureFile, this.chrtextures, c.userData.texture.texture, npc.texture, npc.face)
+                if (mesh.helm === "01" && c.userData.textureFile.indexOf('clk') !== -1 && npcTint && (npcTint.red2c > 0 || npcTint.blu2c > 0 || npcTint.grn2c > 0)) {
+                  c.material = c.material.clone()
+                  //c.material.color.setHex(0xFFFFFF)
+                  c.material.color.setHex(parseInt(`0x${npcTint.red2c.toString(16)}${npcTint.grn2c.toString(16)}${npcTint.blu2c.toString(16)}`, 16))
+                }
               }
             }
             group.add(newmesh)

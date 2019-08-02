@@ -280,7 +280,7 @@ export default class Scene extends EventEmitter {
         let genderName = npc.gender === 0 ? 'male' : npc.gender === 1 ? 'female' : 'neutral'
         let raceCode = raceCodes[npc.race][genderName]
 
-        let geo = new THREE.CylinderGeometry(2 * npc.size/6.0, 2 * npc.size/6.0, 6 * npc.size/6.0)
+        let geo = new THREE.CylinderGeometry(2 * npc.size > 0 ? npc.size/6.0 : 1, 2 * npc.size > 0 ? npc.size/6.0 : 1, 6 * npc.size > 0 ? npc.size/6.0 : 1)
         geo.rotateX(THREE.Math.degToRad(90))
         geo.translate(0, 0, 1)
         let mat = new THREE.MeshLambertMaterial({color: new THREE.Color(1, 1, 0).getHex(), transparent: true, opacity: 0, alphaTest: 0})
@@ -323,7 +323,7 @@ export default class Scene extends EventEmitter {
           let height = max.z - min.z
           let center = (min.z + max.z) / 2
           base.geometry.translate(0, 0, center - 1)
-          group.scale.set(npc.size / height, npc.size / height, npc.size / height)
+          group.scale.set(npc.size > 0 ? npc.size / height : 1, npc.size > 0 ? npc.size / height : 1, npc.size > 0 ? npc.size / height : 1)
           base.userData.offset = center
           base.add(group)
         }

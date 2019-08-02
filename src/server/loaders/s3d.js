@@ -5,9 +5,16 @@ const { StringDecoder } = require('string_decoder')
 module.exports = function(fileName, cb) {
   let filePath = `./zones/${fileName}`
   fs.readFile(filePath, (err, file) => {
-    if (err) throw err
+    if (err) throw new Error(err)
     console.log(`Loading S3D`)
     let buf = Buffer.from(file)
+    if (buf.length === 0) {
+      cb({
+        wld: [],
+        s3d: {}
+      })
+      return
+    }
     let offset = buf.readUInt32LE(0)
     if (new StringDecoder().write(buf.slice(4, 8)) !== 'PFS ') {
       throw new Error('File is not S3D')

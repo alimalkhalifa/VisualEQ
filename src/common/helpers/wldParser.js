@@ -100,6 +100,10 @@ class WLDParser {
     let characters = {}
     let textures = {}
     for(let s3d of chrs) {
+      if (!s3d.wld) {
+        cb({characters: {}, textures: {}})
+        return
+      }
       let chr = s3d.wld
       for (let fragIndex in chr) {
         let fragment = chr[fragIndex]

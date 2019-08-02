@@ -1,0 +1,8 @@
+UPDATE `zone` SET `expansion`=1 WHERE  `id`=110;
+UPDATE `zone` SET `expansion`=1 WHERE  `id`=357;
+UPDATE `zone` SET `expansion`=7 WHERE  `id`=118;
+UPDATE `zone` SET `expansion`=6 WHERE  `id`=163;
+UPDATE `zone` SET `expansion`=7 WHERE  `id`=244;
+UPDATE `zone` SET `expansion`=2 WHERE  `id`=184;
+UPDATE `zone` SET `expansion`=4 WHERE  `id`=184;
+UPDATE `zone` SET `expansion`=2 WHERE  `id`=172;

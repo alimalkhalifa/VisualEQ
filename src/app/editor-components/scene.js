@@ -274,59 +274,61 @@ export default class Scene extends EventEmitter {
         }
       }
       let npc = npcTypes[0]
-      let npcTint = npcTypesTint[0]
-      if (npcTint && npcTint.id !== npc.id) npcTint = null
-      let genderName = npc.gender === 0 ? 'male' : npc.gender === 1 ? 'female' : 'neutral'
-      let raceCode = raceCodes[npc.race][genderName]
+      if (npc) {
+        let npcTint = npcTypesTint[0]
+        if (npcTint && npcTint.id !== npc.id) npcTint = null
+        let genderName = npc.gender === 0 ? 'male' : npc.gender === 1 ? 'female' : 'neutral'
+        let raceCode = raceCodes[npc.race][genderName]
 
-      let geo = new THREE.CylinderGeometry(2 * npc.size/6.0, 2 * npc.size/6.0, 6 * npc.size/6.0)
-      geo.rotateX(THREE.Math.degToRad(90))
-      geo.translate(0, 0, 1)
-      let mat = new THREE.MeshLambertMaterial({color: new THREE.Color(1, 1, 0).getHex(), transparent: true, opacity: 0, alphaTest: 0})
-      let base = new THREE.Mesh(geo, mat)
-      base.position.set(spawn.y, spawn.x, spawn.z /* - Helper.getZOffset(npc.race) */) // Offset
-      base.userData.selectable = true
-      base.userData.type = "SpawnPoint"
-      base.userData.spawnInfo = spawn
-      base.userData.spawngroup = spawngroup
-      base.userData.spawnentry = spawnentry
-      base.userData.npcTypes = npcTypes
-      base.userData.npcTypesTint = npcTypesTint
-      base.userData.size = npc.size
-      base.userData.offset = 1
-      
-      if (this.chr_meshCache[raceCode]) {
-        let char = this.chr_meshCache[raceCode]
-        let helm = npc.helmtexture < 10 ? `HE0${parseInt(npc.helmtexture)}` : `HE${parseInt(npc.helmtexture)}`
-        let min = new THREE.Vector3()
-        let max = new THREE.Vector3()
-        let group = new THREE.Group()
-        for (let mesh of char) {
-          if ((npc.texture <= 6 && mesh.helm === "BASE") || mesh.helm === helm || (npc.texture > 6 && mesh.helm === "BO01")) {
-            let newmesh = mesh.mesh.clone().rotateOnAxis(new THREE.Vector3(0,0,1), THREE.Math.degToRad(spawn.heading - 90))
-            if (npc.texture > 0 || npc.face > 0) {
-              for (let c of newmesh.children) {
-                c.material = this.loadMaterial(c.userData.textureFile, this.chrtextures, c.userData.texture.texture, npc.texture, npc.face)
-                if (mesh.helm === "01" && c.userData.textureFile.indexOf('clk') !== -1 && npcTint && (npcTint.red2c > 0 || npcTint.blu2c > 0 || npcTint.grn2c > 0)) {
-                  c.material = c.material.clone()
-                  //c.material.color.setHex(0xFFFFFF)
-                  c.material.color.setHex(parseInt(`0x${npcTint.red2c.toString(16)}${npcTint.grn2c.toString(16)}${npcTint.blu2c.toString(16)}`, 16))
+        let geo = new THREE.CylinderGeometry(2 * npc.size/6.0, 2 * npc.size/6.0, 6 * npc.size/6.0)
+        geo.rotateX(THREE.Math.degToRad(90))
+        geo.translate(0, 0, 1)
+        let mat = new THREE.MeshLambertMaterial({color: new THREE.Color(1, 1, 0).getHex(), transparent: true, opacity: 0, alphaTest: 0})
+        let base = new THREE.Mesh(geo, mat)
+        base.position.set(spawn.y, spawn.x, spawn.z /* - Helper.getZOffset(npc.race) */) // Offset
+        base.userData.selectable = true
+        base.userData.type = "SpawnPoint"
+        base.userData.spawnInfo = spawn
+        base.userData.spawngroup = spawngroup
+        base.userData.spawnentry = spawnentry
+        base.userData.npcTypes = npcTypes
+        base.userData.npcTypesTint = npcTypesTint
+        base.userData.size = npc.size
+        base.userData.offset = 1
+        
+        if (this.chr_meshCache[raceCode]) {
+          let char = this.chr_meshCache[raceCode]
+          let helm = npc.helmtexture < 10 ? `HE0${parseInt(npc.helmtexture)}` : `HE${parseInt(npc.helmtexture)}`
+          let min = new THREE.Vector3()
+          let max = new THREE.Vector3()
+          let group = new THREE.Group()
+          for (let mesh of char) {
+            if ((npc.texture <= 6 && mesh.helm === "BASE") || mesh.helm === helm || (npc.texture > 6 && mesh.helm === "BO01")) {
+              let newmesh = mesh.mesh.clone().rotateOnAxis(new THREE.Vector3(0,0,1), THREE.Math.degToRad(spawn.heading - 90))
+              if (npc.texture > 0 || npc.face > 0) {
+                for (let c of newmesh.children) {
+                  c.material = this.loadMaterial(c.userData.textureFile, this.chrtextures, c.userData.texture.texture, npc.texture, npc.face)
+                  if (mesh.helm === "01" && c.userData.textureFile.indexOf('clk') !== -1 && npcTint && (npcTint.red2c > 0 || npcTint.blu2c > 0 || npcTint.grn2c > 0)) {
+                    c.material = c.material.clone()
+                    //c.material.color.setHex(0xFFFFFF)
+                    c.material.color.setHex(parseInt(`0x${npcTint.red2c.toString(16)}${npcTint.grn2c.toString(16)}${npcTint.blu2c.toString(16)}`, 16))
+                  }
                 }
               }
+              group.add(newmesh)
+              min.min(mesh.min)
+              max.max(mesh.max)
             }
-            group.add(newmesh)
-            min.min(mesh.min)
-            max.max(mesh.max)
           }
+          let height = max.z - min.z
+          let center = (min.z + max.z) / 2
+          base.geometry.translate(0, 0, center - 1)
+          group.scale.set(npc.size / height, npc.size / height, npc.size / height)
+          base.userData.offset = center
+          base.add(group)
         }
-        let height = max.z - min.z
-        let center = (min.z + max.z) / 2
-        base.geometry.translate(0, 0, center - 1)
-        group.scale.set(npc.size / height, npc.size / height, npc.size / height)
-        base.userData.offset = center
-        base.add(group)
+        this.scene.add(base)
       }
-      this.scene.add(base)
     }
     this.onFinishLoading()
   }

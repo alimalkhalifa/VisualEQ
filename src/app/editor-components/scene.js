@@ -140,6 +140,7 @@ export default class Scene extends EventEmitter {
   }
 
   loadMaterial(textureName, textures, textureInfo, textureNumber = 0, textureFace = -1) {
+    if (!textureName) return new THREE.MeshLambertMaterial()
     let vanillaTextureName = textureName
     if (textureNumber > 0) {
       if (textureNumber > 6) {

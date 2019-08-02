@@ -214,11 +214,13 @@ class WLDParser {
         normal3.x, normal3.y, normal3.z
       )
       let uvDivisor = 256.0
-      uvs.push(
-        uv1.x / uvDivisor, uv1.z / uvDivisor,
-        uv2.x / uvDivisor, uv2.z / uvDivisor,
-        uv3.x / uvDivisor, uv3.z / uvDivisor,
-      )
+      if (uv1, uv2, uv3) {
+        uvs.push(
+          uv1.x / uvDivisor, uv1.z / uvDivisor,
+          uv2.x / uvDivisor, uv2.z / uvDivisor,
+          uv3.x / uvDivisor, uv3.z / uvDivisor,
+        )
+      }
       polygonTexCount++
       if (polygonTexCount >= fragment.polygonTextures[polygonTexIndex].polygonCount) {
         geometry.addAttribute('position', new THREE.BufferAttribute(new Float32Array(vertices), 3))

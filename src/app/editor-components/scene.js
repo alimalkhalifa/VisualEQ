@@ -301,7 +301,7 @@ export default class Scene extends EventEmitter {
         let max = new THREE.Vector3()
         let group = new THREE.Group()
         for (let mesh of char) {
-          if ((npc.texture <= 6 && mesh.helm === "BASE") || mesh.helm === helm || (npc.texture > 6 && mesh.helm === "01")) {
+          if ((npc.texture <= 6 && mesh.helm === "BASE") || mesh.helm === helm || (npc.texture > 6 && mesh.helm === "BO01")) {
             let newmesh = mesh.mesh.clone().rotateOnAxis(new THREE.Vector3(0,0,1), THREE.Math.degToRad(spawn.heading - 90))
             if (npc.texture > 0 || npc.face > 0) {
               for (let c of newmesh.children) {

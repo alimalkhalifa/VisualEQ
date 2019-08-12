@@ -10,6 +10,7 @@ route.get('/:id', (req, res) => {
     connection.query(`SELECT * FROM npc_types WHERE id = '${req.params.id}'`, (err, results) => {
       if (err) throw err
       res.send(results)
+      connection.release()
     })
   })
 })

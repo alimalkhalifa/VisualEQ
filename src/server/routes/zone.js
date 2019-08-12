@@ -77,6 +77,7 @@ route.get('/shortname/:shortname', (req, res) => {
                   npcTypes,
                   npcTypesTint
                 })
+                connection.release()
               })
             })
           })
@@ -94,6 +95,7 @@ route.get('/spawns/:shortname', (req, res) => {
     connection.query(`SELECT * FROM spawn2 WHERE zone = '${req.params.shortname}'`, (err, results) => {
       if (err) throw new Error(err)
       res.send(results)
+      connection.release()
     })
   })
 })
@@ -104,6 +106,7 @@ route.get('/', (req, res) => {
     connection.query(`SELECT * FROM zone WHERE expansion = 1`, (err, results) => {
       if (err) throw new Error(err)
       res.send(results)
+      connection.release()
     })
   })
 })

@@ -9,7 +9,7 @@ import InfoBox from './infoBox';
 import EventEmitter from 'events';
 import pako from 'pako'
 import raceCodes from '../../common/constants/raceCodeConstants.json'
-import { Quaternion, MeshBasicMaterial } from 'three';
+import { Quaternion, MeshBasicMaterial, Sphere } from 'three';
 import Helper from '../helper';
 import { ETIME } from 'constants';
 
@@ -112,7 +112,8 @@ export default class Scene extends EventEmitter {
           }
         }
       })
-      this.onFinishLoading() // DEBUG
+      this.loadSpawns()
+      this.onFinishLoading()
     }, xhr => {
       document.getElementById('loading-percentage').innerHTML = `${Math.round(xhr.loaded / xhr.total * 100)}% loaded`
     }, err => {
@@ -399,10 +400,10 @@ export default class Scene extends EventEmitter {
         let genderName = npc.gender === 0 ? 'male' : npc.gender === 1 ? 'female' : 'neutral'
         let raceCode = raceCodes[npc.race][genderName]
 
-        let geo = new THREE.CylinderGeometry(2 * npc.size > 0 ? npc.size/6.0 : 1, 2 * npc.size > 0 ? npc.size/6.0 : 1, 6 * npc.size > 0 ? npc.size/6.0 : 1)
-        geo.rotateX(THREE.Math.degToRad(90))
-        geo.translate(0, 0, 1)
-        let mat = new THREE.MeshLambertMaterial({color: new THREE.Color(1, 1, 0).getHex(), transparent: true, opacity: 0, alphaTest: 0})
+        let geo = new THREE.SphereGeometry(2, 8, 8)//new THREE.CylinderGeometry(2 * npc.size > 0 ? npc.size/6.0 : 1, 2 * npc.size > 0 ? npc.size/6.0 : 1, 6 * npc.size > 0 ? npc.size/6.0 : 1)
+        //geo.rotateX(THREE.Math.degToRad(90))
+        //geo.translate(0, 0, 1)
+        let mat = new THREE.MeshLambertMaterial({color: new THREE.Color(1, 1, 0).getHex(), transparent: true, opacity: 0.5, alphaTest: 0.2})
         let base = new THREE.Mesh(geo, mat)
         base.position.set(spawn.y, spawn.x, spawn.z /* - Helper.getZOffset(npc.race) */) // Offset
         base.userData.selectable = true
@@ -415,6 +416,7 @@ export default class Scene extends EventEmitter {
         base.userData.size = npc.size
         base.userData.offset = 1
         
+        /*
         if (this.chr_meshCache[raceCode]) {
           let char = this.chr_meshCache[raceCode]
           let helm = npc.helmtexture < 10 ? `HE0${parseInt(npc.helmtexture)}` : `HE${parseInt(npc.helmtexture)}`
@@ -446,10 +448,11 @@ export default class Scene extends EventEmitter {
           base.userData.offset = center
           base.add(group)
         }
+        */
         this.scene.add(base)
       }
     }
-    this.onFinishLoading()
+    //this.onFinishLoading()
   }
 
   onViewportResize() {

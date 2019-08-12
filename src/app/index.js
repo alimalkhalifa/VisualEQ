@@ -14,7 +14,7 @@ store.subscribe(() => {
     console.log("Zone Changed")
     zone = store.getState().zone
     scene.dispose()
-    scene = new Scene(zone)
+    scene = new Scene()
   }
 })
 

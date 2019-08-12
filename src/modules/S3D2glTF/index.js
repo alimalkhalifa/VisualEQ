@@ -7,7 +7,7 @@ const loadWLD = require('./loaders/wld')
 
 let material = new THREE.MeshBasicMaterial({})
 
-function convertDir(dir, out) {
+function convertDir(dir, out, highmem) {
   try {
     fs.statSync(out)
   } catch(err) {
@@ -15,11 +15,21 @@ function convertDir(dir, out) {
   }
   fs.readdir(dir, (err, files) => {
     if (err) throw new Error(err)
-    files.filter(val => val.indexOf('crushbone') !== -1).map(s3d => {
-      let subout = s3d.substr(0, s3d.indexOf('_') !== -1 ? s3d.indexOf('_') : s3d.indexOf('.'))
-      convertS3D(`${dir}/${s3d}`, `${out}/${subout}`)
-    })
+    let queue = files.filter(val => val.indexOf('.s3d') !== -1)
+    processConvertQueue(queue, dir, out, highmem)
   })
+}
+
+function processConvertQueue(queue, dir, out, highmem) {
+  if (queue.length === 0) return
+  if (process.memoryUsage().heapUsed > (highmem ? 4000000000 : 500000000)) {
+    setTimeout(() => processConvertQueue(queue, dir, out), 1000)
+  } else {
+    setImmediate(() => processConvertQueue(queue.slice(1), dir, out))
+    let s3d = queue[0]
+    let subout = s3d.substr(0, s3d.indexOf('_') !== -1 ? s3d.indexOf('_') : s3d.indexOf('.'))
+    convertS3D(`${dir}/${s3d}`, `${out}/${subout}`)
+  }
 }
 
 async function convertS3D(path, out) {
@@ -136,6 +146,43 @@ function convertZoneToglTF(zoneName, s3d, out) {
 
 function convertObjToglTFs(zoneName, s3d, out) {
   console.log(`Converting ${zoneName}_obj`)
+  let wld = s3d.files[`${zoneName}_obj.wld`]
+  let zone = loadWLD(wld)
+  let scene = new THREE.Scene()
+  let textures = {}
+  for (let fragIndex in zone) {
+    let fragment = zone[fragIndex]
+    if (fragment.type === "StaticModelRef") {
+      let meshRef = fragment.meshReferences[0]
+      let meshInfo = zone[zone[meshRef].mesh]
+      let group = new THREE.Group()
+      if (meshInfo) {
+        let meshes = loadWLDMesh(meshInfo, fragIndex, zone)
+        for (let name in meshes.textures) {
+          if (!(name in textures)) {
+            textures[name] = meshes.textures[name]
+          }
+        }
+        for (let mesh of meshes.meshes) {
+          mesh.userData.staticobject = true
+          group.add(mesh)
+        }
+      }
+      if (group.children.length > 0) {
+        group.name = fragment.name
+        scene.add(group)
+      }
+    }
+  }
+  scene.userData.textures = textures
+  const exporter = new GLTFExporter()
+  exporter.parse(scene, gltf => {
+    fs.writeFile(`${out}/${zoneName}_obj.gltf`, JSON.stringify(gltf), err => {
+      if (err) throw new Error(err)
+    })
+  }, {
+    embedImages: false
+  })
 }
 
 function loadWLDMesh(fragment, fragIndex, wld, skeletonEntries = []) {
@@ -212,7 +259,7 @@ function loadWLDMesh(fragment, fragIndex, wld, skeletonEntries = []) {
     polygonTexCount++
     if (polygonTexCount >= fragment.polygonTextures[polygonTexIndex].polygonCount) {
       geometry.addAttribute('position', new THREE.BufferAttribute(new Float32Array(vertices), 3))
-      geometry.addAttribute('normal', new THREE.BufferAttribute(new Float32Array(normals), 3))
+      //geometry.addAttribute('normal', new THREE.BufferAttribute(new Float32Array(normals), 3))
       geometry.addAttribute('uv', new THREE.BufferAttribute(new Float32Array(uvs), 2))
       geometry.computeBoundingBox()
       var mesh = new THREE.Mesh(geometry, material)

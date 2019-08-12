@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import GLTFLoader from 'three-gltf-loader'
+import jimp from 'jimp'
 import { store } from '../store'
 import { changeScene } from '../store/actions'
 import FlyCamera from './flyCamera'
@@ -10,11 +11,11 @@ import pako from 'pako'
 import raceCodes from '../../common/constants/raceCodeConstants.json'
 import { Quaternion, MeshBasicMaterial } from 'three';
 import Helper from '../helper';
+import { ETIME } from 'constants';
 
 export default class Scene extends EventEmitter {
-  constructor(zoneShortName) {
+  constructor() {
     super()
-    this.zoneShortName = zoneShortName
     this.infoBox = null
     this.scene = null
     this.camera = null
@@ -75,7 +76,7 @@ export default class Scene extends EventEmitter {
   }
 
   updateZoneInfo(goToHome = false) {
-    fetch(`/zone/shortname/${this.zoneShortName}`).then(res => {
+    fetch(`/zone/shortname/${store.getState().zone}`).then(res => {
       return res.json()
     }).then(res => {
       console.log(`Zone Info fetched: ${res.zoneInfo[0].long_name}`)
@@ -94,29 +95,25 @@ export default class Scene extends EventEmitter {
 
   updateZoneS3D() {
     let loader = new GLTFLoader()
-    loader.load('graphics/crushbone/crushbone.gltf', gltf => {
+    loader.load(`graphics/${store.getState().zone}/${store.getState().zone}.gltf`, gltf => {
       this.scene.add(gltf.scene)
-      gltf.scene.traverse(child => {
-        if (child.userData.texture) {
-          if (!(child.userData.texture in this.material_cache)) {
-            let texInfo = gltf.scene.userData.textures[child.userData.texture]
-            let textureFile = texInfo.texturePaths[0].files[0].toLowerCase()
-            var texture = new THREE.TextureLoader().load(`graphics/crushbone/textures/${textureFile.substr(0, textureFile.indexOf('.'))}.png`)
-            texture.wrapS = THREE.RepeatWrapping
-            texture.wrapT = THREE.RepeatWrapping
-            this.material_cache[child.userData.texture] =  new THREE.MeshLambertMaterial({
-              map: texture,
-              ...(texInfo.texture.masked ? {alphaMap: alpha} : {}),
-              ...((!texInfo.texture.apparentlyNotTransparent || texInfo.texture.masked) ? {transparent: 1} : {}),
-              ...(!texInfo.texture.apparentlyNotTransparent ? {opacity: 0} : {}),
-              alphaTest: 0.8
-            })
+      this.loadSceneMaterials(gltf.scene)
+      loader.load(`graphics/${store.getState().zone}/${store.getState().zone}_obj.gltf`, objgltf => {
+        this.loadSceneMaterials(objgltf.scene)
+        let objectLocations = gltf.scene.userData.objectLocations
+        for (let obj of objectLocations) {
+          let mesh = objgltf.scene.children.find(value => value.name === obj.name)
+          if (mesh) {
+            let newmesh = mesh.clone()
+            newmesh.position.copy(new THREE.Vector3().fromArray(obj.position))
+            newmesh.quaternion.copy(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(new THREE.Vector3().fromArray(obj.rot))))
+            newmesh.scale.copy(new THREE.Vector3().fromArray(obj.scale))
+            this.scene.add(newmesh)
           }
-          child.material = this.material_cache[child.userData.texture]
         }
       })
     }, xhr => {
-      console.log(`${xhr.loaded / xhr.total * 100} loaded`)
+      console.log(`${xhr.loaded / xhr.total * 100}% loaded`)
     }, err => {
       console.error(err)
     })
@@ -166,6 +163,99 @@ export default class Scene extends EventEmitter {
       this.chrtextures = res.chrtextures
       this.loadSpawns()
     })*/
+  }
+
+  loadSceneMaterials(scene) {
+    scene.traverse(child => {
+      if (child.userData.texture) {
+        if (!(child.userData.texture in this.material_cache)) {
+          let texInfo = scene.userData.textures[child.userData.texture]
+          let texture = new THREE.Texture()
+          texture.wrapS = THREE.RepeatWrapping
+          texture.wrapT = THREE.RepeatWrapping
+          let alpha = new THREE.Texture()
+          alpha.wrapS = THREE.RepeatWrapping
+          alpha.wrapT = THREE.RepeatWrapping
+          alpha.magFilter = THREE.NearestFilter
+          alpha.minFilter = THREE.NearestFilter
+          if (texInfo.texturePaths) {
+            let textureFile = texInfo.texturePaths[0].files[0].toLowerCase()
+            jimp.read(`graphics/${store.getState().zone}/textures/${textureFile.substr(0, textureFile.indexOf('.'))}.png`).then(img => {
+              img.getBase64Async(jimp.MIME_PNG).then(data => {
+                let e = new Image()
+                e.onload = () => {
+                  texture.image = e
+                  texture.needsUpdate = true
+                }
+                e.src = data
+              })
+              if (texInfo.texture.masked) {
+                if (child.userData.texture.indexOf('FIRE') !== -1) {
+                  img.greyscale((err, grey) => {
+                    grey.scan(0, 0, img.bitmap.width, img.bitmap.height, function(x, y, idx) {
+                      let val = Math.pow(this.bitmap.data[idx]/255, 1/4) * 255
+                      this.bitmap.data[idx] = val
+                      this.bitmap.data[idx+1] = val
+                      this.bitmap.data[idx+2] = val
+                    }, (err, newimg) => {
+                      newimg.getBase64Async(jimp.MIME_PNG).then(data => {
+                        let e = new Image()
+                        e.onload = () => {
+                          alpha.image = e
+                          alpha.needsUpdate = true
+                        }
+                        e.src = data
+                      })
+                    })
+                  })
+                } else {
+                  let idxTrans = [-1, -1, -1, -1]
+                  let newTrans = true
+                  img.scan(0, 0, img.bitmap.width, img.bitmap.height, function(x, y, idx) {
+                    let idxTuple = [this.bitmap.data[idx], this.bitmap.data[idx+1], this.bitmap.data[idx+2], this.bitmap.data[idx+3]]
+                    if (newTrans) {
+                      idxTrans = idxTuple
+                      newTrans = false
+                    }
+                    
+                    if (
+                      idxTuple[0] === idxTrans[0] &&
+                      idxTuple[1] === idxTrans[1] &&
+                      idxTuple[2] === idxTrans[2] &&
+                      idxTuple[3] === idxTrans[3]
+                    ) {
+                      this.bitmap.data[idx] = 0
+                      this.bitmap.data[idx+1] = 0
+                      this.bitmap.data[idx+2] = 0
+                    } else {
+                      this.bitmap.data[idx] = 255
+                      this.bitmap.data[idx+1] = 255
+                      this.bitmap.data[idx+2] = 255
+                    }
+                  }, (err, newImg) => newImg.getBase64(jimp.MIME_PNG, (err, data) => {
+                      let e = new Image()
+                      e.onload = () => {
+                        alpha.image = e
+                        alpha.needsUpdate = true
+                      }
+                      e.src = data
+                    })
+                  )
+                }
+              }
+            })
+          }
+          this.material_cache[child.userData.texture] =  new THREE.MeshLambertMaterial({
+            ...(texture ? {map: texture} : {}),
+            ...(texInfo.texture.masked ? {alphaMap: alpha} : {}),
+            ...((!texInfo.texture.apparentlyNotTransparent || texInfo.texture.masked) ? {transparent: 1} : {}),
+            ...(!texInfo.texture.apparentlyNotTransparent ? {opacity: 0} : {}),
+            alphaTest: 0.8
+          })
+        }
+        child.material = this.material_cache[child.userData.texture]
+      }
+    })
   }
 
   loadMaterial(textureName, textures, textureInfo, textureNumber = 0, textureFace = -1) {

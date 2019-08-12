@@ -48,7 +48,7 @@ export default class Scene extends EventEmitter {
     this.ambientLight = new THREE.AmbientLight( 0xffffff, 1 )
     this.scene.add( this.ambientLight )
     this.scene.background = new THREE.Color().setHex(0x82eaff)
-    this.scene.fog = new THREE.Fog(new THREE.Color().setHex(0x82eaff), 600, 1000)
+    this.scene.fog = new THREE.Fog(new THREE.Color().setHex(0x82eaff), 4000, 5000)
 
     this.clock = new THREE.Clock()
 
@@ -112,12 +112,12 @@ export default class Scene extends EventEmitter {
           }
         }
       })
+      this.onFinishLoading() // DEBUG
     }, xhr => {
-      console.log(`${xhr.loaded / xhr.total * 100}% loaded`)
+      document.getElementById('loading-percentage').innerHTML = `${Math.round(xhr.loaded / xhr.total * 100)}% loaded`
     }, err => {
       console.error(err)
     })
-    this.onFinishLoading() // DEBUG
     /*fetch(`/zone/s3d/${this.zoneShortName}`).then(res => {
       return res.text()
     }).then(res => {

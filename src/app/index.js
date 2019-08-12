@@ -33,6 +33,7 @@ zoneSelector.onchange = (e) => {
   const target = e.target
   const value = target.value
   document.getElementById('loading-container').style.visibility = 'visible'
+  document.getElementById('loading-percentage').innerHTML = '0%'
   store.dispatch(changeZone(value))
 }
 

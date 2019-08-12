@@ -6,7 +6,7 @@ export default class Camera {
     this.viewport = document.getElementById("viewport")
     this.windowSizeX = this.viewport.clientWidth
     this.windowSizeY = this.viewport.clientHeight
-    this.object = new THREE.PerspectiveCamera( 55, this.windowSizeX / this.windowSizeY, 1, 1000 );
+    this.object = new THREE.PerspectiveCamera( 55, this.windowSizeX / this.windowSizeY, 1, 5000 );
     this.object.up.set(0,0,1);
     this.cameraSpeed = 100
     this.doubleSpeed = false

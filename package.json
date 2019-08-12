@@ -9,11 +9,16 @@
     "test": "npx nodemon -w test --target node --bundle-node-modules --exec \"parcel build --out-dir test-build test/index.js && node test-build/index.js\""
   },
   "dependencies": {
+    "canvas": "^2.5.0",
     "express": "^4.17.1",
+    "filereader": "^0.10.3",
+    "jimp": "^0.6.4",
     "mysql": "^2.17.1",
     "pako": "^1.0.10",
     "parcel": "^1.12.3",
     "redux": "^4.0.4",
-    "three": "^0.106.2"
+    "three": "^0.106.2",
+    "three-gltf-loader": "^1.107.0",
+    "vblob": "^1.0.2"
   }
 }

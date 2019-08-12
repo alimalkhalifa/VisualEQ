@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import GLTFLoader from 'three-gltf-loader'
 import { store } from '../store'
 import { changeScene } from '../store/actions'
 import FlyCamera from './flyCamera'
@@ -92,7 +93,35 @@ export default class Scene extends EventEmitter {
   }
 
   updateZoneS3D() {
-    fetch(`/zone/s3d/${this.zoneShortName}`).then(res => {
+    let loader = new GLTFLoader()
+    loader.load('graphics/crushbone/crushbone.gltf', gltf => {
+      this.scene.add(gltf.scene)
+      gltf.scene.traverse(child => {
+        if (child.userData.texture) {
+          if (!(child.userData.texture in this.material_cache)) {
+            let texInfo = gltf.scene.userData.textures[child.userData.texture]
+            let textureFile = texInfo.texturePaths[0].files[0].toLowerCase()
+            var texture = new THREE.TextureLoader().load(`graphics/crushbone/textures/${textureFile.substr(0, textureFile.indexOf('.'))}.png`)
+            texture.wrapS = THREE.RepeatWrapping
+            texture.wrapT = THREE.RepeatWrapping
+            this.material_cache[child.userData.texture] =  new THREE.MeshLambertMaterial({
+              map: texture,
+              ...(texInfo.texture.masked ? {alphaMap: alpha} : {}),
+              ...((!texInfo.texture.apparentlyNotTransparent || texInfo.texture.masked) ? {transparent: 1} : {}),
+              ...(!texInfo.texture.apparentlyNotTransparent ? {opacity: 0} : {}),
+              alphaTest: 0.8
+            })
+          }
+          child.material = this.material_cache[child.userData.texture]
+        }
+      })
+    }, xhr => {
+      console.log(`${xhr.loaded / xhr.total * 100} loaded`)
+    }, err => {
+      console.error(err)
+    })
+    this.onFinishLoading() // DEBUG
+    /*fetch(`/zone/s3d/${this.zoneShortName}`).then(res => {
       return res.text()
     }).then(res => {
       res = JSON.parse(pako.inflate(res, { to: "string" }))
@@ -136,7 +165,7 @@ export default class Scene extends EventEmitter {
       }
       this.chrtextures = res.chrtextures
       this.loadSpawns()
-    })
+    })*/
   }
 
   loadMaterial(textureName, textures, textureInfo, textureNumber = 0, textureFace = -1) {

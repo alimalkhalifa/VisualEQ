@@ -59,7 +59,7 @@ async function convertS3D(path, out) {
   }
 }
 
-function extractTextures(name, type, s3d, out) {
+async function extractTextures(name, type, s3d, out) {
   console.log(`Extracting textures for ${name} - ${type}`)
   try {
     fs.statSync(`${out}/textures`)
@@ -72,12 +72,49 @@ function extractTextures(name, type, s3d, out) {
       if (buf.length > 0) {
         jimp.read(buf, (err, bmp) => {
           if (err) {
-            fs.writeFile(`${out}/textures/${fileName.substr(0, fileName.indexOf('.bmp'))}.dds`, buf, err => {
+            fs.writeFileSync(`${out}/textures/${fileName.substr(0, fileName.indexOf('.bmp'))}.dds`, buf, err => {
               if (err) throw new Error(err)
             })
             return
           }
           bmp.write(`${out}/textures/${fileName.substr(0, fileName.indexOf('.bmp'))}.png`)
+          if (fileName.indexOf("fire") !== -1) {
+            bmp.greyscale((err, grey) => {
+              grey.scan(0, 0, grey.bitmap.width, grey.bitmap.height, function(x, y, idx) {
+                let val = Math.pow(this.bitmap.data[idx]/255, 1/4) * 255
+                this.bitmap.data[idx] = val
+                this.bitmap.data[idx+1] = val
+                this.bitmap.data[idx+2] = val
+              }, (err, newImg) => newImg.write(`${out}/textures/${fileName.substr(0, fileName.indexOf('.bmp'))}_alpha.png`)
+              )
+            })
+          } else {
+            let idxTrans = [-1, -1, -1, -1]
+            let newTrans = true
+            bmp.scan(0, 0, bmp.bitmap.width, bmp.bitmap.height, function(x, y, idx) {
+              let idxTuple = [this.bitmap.data[idx], this.bitmap.data[idx+1], this.bitmap.data[idx+2], this.bitmap.data[idx+3]]
+              if (newTrans) {
+                idxTrans = idxTuple
+                newTrans = false
+              }
+              
+              if (
+                idxTuple[0] === idxTrans[0] &&
+                idxTuple[1] === idxTrans[1] &&
+                idxTuple[2] === idxTrans[2] &&
+                idxTuple[3] === idxTrans[3]
+              ) {
+                this.bitmap.data[idx] = 0
+                this.bitmap.data[idx+1] = 0
+                this.bitmap.data[idx+2] = 0
+              } else {
+                this.bitmap.data[idx] = 255
+                this.bitmap.data[idx+1] = 255
+                this.bitmap.data[idx+2] = 255
+              }
+            }, (err, newImg) => newImg.write(`${out}/textures/${fileName.substr(0, fileName.indexOf('.bmp'))}_alpha.png`)
+            )
+          }
         })
       }
     }
@@ -85,6 +122,7 @@ function extractTextures(name, type, s3d, out) {
 }
 
 function convertZoneToglTF(zoneName, s3d, out) {
+  let doneGif = []
   console.log(`Converting ${zoneName}`)
   let wld = s3d.files[`${zoneName}.wld`]
   let obj = s3d.files['objects.wld']

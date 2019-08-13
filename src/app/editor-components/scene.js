@@ -7,11 +7,7 @@ import FlyCamera from './flyCamera'
 import Selector from './selector'
 import InfoBox from './infoBox';
 import EventEmitter from 'events';
-import pako from 'pako'
 import raceCodes from '../../common/constants/raceCodeConstants.json'
-import { Quaternion, MeshBasicMaterial, Sphere } from 'three';
-import Helper from '../helper';
-import { ETIME } from 'constants';
 
 export default class Scene extends EventEmitter {
   constructor() {
@@ -30,6 +26,7 @@ export default class Scene extends EventEmitter {
     this.material_cache = {}
     this.chr_meshCache = {}
     this.chrtextures = {}
+    this.gifs = []
     this.onViewportResize = this.onViewportResize.bind(this)
     this.Init()
   }
@@ -51,6 +48,7 @@ export default class Scene extends EventEmitter {
     this.scene.fog = new THREE.Fog(new THREE.Color().setHex(0x82eaff), 4000, 5000)
 
     this.clock = new THREE.Clock()
+    this.scene.userData.clock = this.clock
 
     this.raycaster = new THREE.Raycaster()
 
@@ -119,51 +117,6 @@ export default class Scene extends EventEmitter {
     }, err => {
       console.error(err)
     })
-    /*fetch(`/zone/s3d/${this.zoneShortName}`).then(res => {
-      return res.text()
-    }).then(res => {
-      res = JSON.parse(pako.inflate(res, { to: "string" }))
-      console.log(res)
-      let objectLoader = new THREE.ObjectLoader()
-      let world = objectLoader.parse(res.scene)
-      for (let w of world.children) {
-        w.material = this.loadMaterial(w.userData.textureFile, res.textures, w.userData.texture.texture)
-      }
-      for (let o of res.objectLocations) {
-        for (let m of res.meshCache[o.name]) {
-          let mesh = objectLoader.parse(m)
-          mesh.position.copy(new THREE.Vector3().fromArray(o.position))
-          mesh.quaternion.copy(new THREE.Quaternion().setFromEuler(new THREE.Euler().setFromVector3(new THREE.Vector3().fromArray(o.rot))))
-          mesh.scale.copy(new THREE.Vector3().fromArray(o.scale))
-          mesh.material = this.loadMaterial(mesh.userData.textureFile, res.objtextures, mesh.userData.texture.texture)
-          world.add(mesh)
-        }
-      }
-      this.scene.add(world)
-      for (let c in res.characters) {
-        let cache = []
-        for (let h of res.characters[c]) {
-          if (h.mesh.length > 0) {
-            let mesh = new THREE.Group()
-            let min = new THREE.Vector3()
-            let max = new THREE.Vector3()
-            for (let m of h.mesh) {
-              let part = objectLoader.parse(m)
-              part.material = this.loadMaterial(part.userData.textureFile, res.chrtextures, part.userData.texture.texture)
-              mesh.add(part)
-              let geo = part.geometry
-              geo.computeBoundingBox()
-              min.min(geo.boundingBox.min)
-              max.max(geo.boundingBox.max)
-            }
-            cache.push({helm: h.helm, mesh, min, max})
-          }
-        }
-        this.chr_meshCache[c] = cache
-      }
-      this.chrtextures = res.chrtextures
-      this.loadSpawns()
-    })*/
   }
 
   loadSceneMaterials(scene) {
@@ -171,182 +124,77 @@ export default class Scene extends EventEmitter {
       if (child.userData.texture) {
         if (!(child.userData.texture in this.material_cache)) {
           let texInfo = scene.userData.textures[child.userData.texture]
-          let texture = new THREE.Texture()
-          texture.wrapS = THREE.RepeatWrapping
-          texture.wrapT = THREE.RepeatWrapping
-          let alpha = new THREE.Texture()
-          alpha.wrapS = THREE.RepeatWrapping
-          alpha.wrapT = THREE.RepeatWrapping
-          alpha.magFilter = THREE.NearestFilter
-          alpha.minFilter = THREE.NearestFilter
+          let texture
+          let alpha
           if (texInfo.texturePaths) {
-            let textureFile = texInfo.texturePaths[0].files[0].toLowerCase()
-            jimp.read(`graphics/${store.getState().zone}/textures/${textureFile.substr(0, textureFile.indexOf('.'))}.png`).then(img => {
-              img.getBase64Async(jimp.MIME_PNG).then(data => {
-                let e = new Image()
-                e.onload = () => {
-                  texture.image = e
-                  texture.needsUpdate = true
-                }
-                e.src = data
-              })
+            if (texInfo.textureInfo.animatedFlag) {
+              texture = new THREE.Texture()
+              texture.wrapS = THREE.RepeatWrapping
+              texture.wrapT = THREE.RepeatWrapping
               if (texInfo.texture.masked) {
-                if (child.userData.texture.indexOf('FIRE') !== -1) {
-                  img.greyscale((err, grey) => {
-                    grey.scan(0, 0, img.bitmap.width, img.bitmap.height, function(x, y, idx) {
-                      let val = Math.pow(this.bitmap.data[idx]/255, 1/4) * 255
-                      this.bitmap.data[idx] = val
-                      this.bitmap.data[idx+1] = val
-                      this.bitmap.data[idx+2] = val
-                    }, (err, newimg) => {
-                      newimg.getBase64Async(jimp.MIME_PNG).then(data => {
-                        let e = new Image()
-                        e.onload = () => {
-                          alpha.image = e
-                          alpha.needsUpdate = true
-                        }
-                        e.src = data
-                      })
-                    })
-                  })
-                } else {
-                  let idxTrans = [-1, -1, -1, -1]
-                  let newTrans = true
-                  img.scan(0, 0, img.bitmap.width, img.bitmap.height, function(x, y, idx) {
-                    let idxTuple = [this.bitmap.data[idx], this.bitmap.data[idx+1], this.bitmap.data[idx+2], this.bitmap.data[idx+3]]
-                    if (newTrans) {
-                      idxTrans = idxTuple
-                      newTrans = false
-                    }
-                    
-                    if (
-                      idxTuple[0] === idxTrans[0] &&
-                      idxTuple[1] === idxTrans[1] &&
-                      idxTuple[2] === idxTrans[2] &&
-                      idxTuple[3] === idxTrans[3]
-                    ) {
-                      this.bitmap.data[idx] = 0
-                      this.bitmap.data[idx+1] = 0
-                      this.bitmap.data[idx+2] = 0
-                    } else {
-                      this.bitmap.data[idx] = 255
-                      this.bitmap.data[idx+1] = 255
-                      this.bitmap.data[idx+2] = 255
-                    }
-                  }, (err, newImg) => newImg.getBase64(jimp.MIME_PNG, (err, data) => {
-                      let e = new Image()
-                      e.onload = () => {
-                        alpha.image = e
-                        alpha.needsUpdate = true
-                      }
-                      e.src = data
-                    })
-                  )
-                }
+                alpha = new THREE.Texture()
+                alpha.wrapS = THREE.RepeatWrapping
+                alpha.wrapT = THREE.RepeatWrapping
               }
-            })
+              jimp.read(`graphics/${store.getState().zone}/textures/${texInfo.texturePaths[0].files[0].toLowerCase().substr(0, texInfo.texturePaths[0].files[0].toLowerCase().indexOf('.bmp'))}.png`).then(img0 => {
+                let gifImage = document.createElement('canvas')
+                gifImage.width = img0.bitmap.width
+                gifImage.height = img0.bitmap.height
+                let ctx = gifImage.getContext('2d')
+                ctx.fillStyle = '#CCCCCC'
+                ctx.fillRect(0, 0, img0.bitmap.width, img0.bitmap.height)
+                texture.image = gifImage
+                texture.needsUpdate = true
+                let frames = []
+                for (let path of texInfo.texturePaths) {
+                  let f = new Image()
+                  f.src = `graphics/${store.getState().zone}/textures/${path.files[0].toLowerCase().substr(0, path.files[0].toLowerCase().indexOf('.bmp'))}.png`
+                  frames.push(f)
+                }
+                this.gifs.push({texture, gif: gifImage, ctx, frames, frameTime: texInfo.textureInfo.frameTime, currentTime: texInfo.textureInfo.frameTime, currentFrame: 0})
+                if (texInfo.texture.masked) {
+                  let gifAImage = document.createElement('canvas')
+                  gifAImage.width = img0.bitmap.width
+                  gifAImage.height = img0.bitmap.height
+                  let ctxA = gifAImage.getContext('2d')
+                  ctxA.fillStyle = '#CCCCCC'
+                  ctxA.fillRect(0, 0, img0.bitmap.width, img0.bitmap.height)
+                  alpha.image = gifAImage
+                  alpha.needsUpdate = true
+                  let framesA = []
+                  for (let path of texInfo.texturePaths) {
+                    let f = new Image()
+                    f.src = `graphics/${store.getState().zone}/textures/${path.files[0].toLowerCase().substr(0, path.files[0].toLowerCase().indexOf('.bmp'))}_alpha.png`
+                    framesA.push(f)
+                  }
+                  this.gifs.push({texture: alpha, gif: gifAImage, ctx: ctxA, frames: framesA, frameTime: texInfo.textureInfo.frameTime, currentTime: texInfo.textureInfo.frameTime, currentFrame: 0})
+                }
+              })
+            } else {
+              let textureFile = texInfo.texturePaths[0].files[0].toLowerCase()
+              texture = new THREE.TextureLoader().load(`graphics/${store.getState().zone}/textures/${textureFile.substr(0, textureFile.indexOf('.bmp'))}.png`)
+              texture.wrapS = THREE.RepeatWrapping
+              texture.wrapT = THREE.RepeatWrapping
+              if (texInfo.texture.masked) {
+                alpha = new THREE.TextureLoader().load(`graphics/${store.getState().zone}/textures/${textureFile.substr(0, textureFile.indexOf('.bmp'))}_alpha.png`)
+                alpha.wrapS = THREE.RepeatWrapping
+                alpha.wrapT = THREE.RepeatWrapping
+                alpha.magFilter = THREE.NearestFilter
+                alpha.minFilter = THREE.NearestFilter
+              }
+            }
           }
-          this.material_cache[child.userData.texture] =  new THREE.MeshLambertMaterial({
+          this.material_cache[child.userData.texture] = new THREE.MeshLambertMaterial({
             ...(texture ? {map: texture} : {}),
-            ...(texInfo.texture.masked ? {alphaMap: alpha} : {}),
+            ...((texInfo.texture.masked && alpha) ? {alphaMap: alpha} : {}),
             ...((!texInfo.texture.apparentlyNotTransparent || texInfo.texture.masked) ? {transparent: 1} : {}),
             ...(!texInfo.texture.apparentlyNotTransparent ? {opacity: 0} : {}),
             alphaTest: 0.8
           })
         }
-        child.material = this.material_cache[child.userData.texture]
+        child.material = this.material_cache[child.userData.texture] 
       }
     })
-  }
-
-  loadMaterial(textureName, textures, textureInfo, textureNumber = 0, textureFace = -1) {
-    if (!textureName) return new THREE.MeshLambertMaterial()
-    let vanillaTextureName = textureName
-    if (textureNumber > 0) {
-      if (textureNumber > 6) {
-        textureNumber -= 6
-      }
-      textureName = textureName.substr(0, textureName.indexOf('0')) + (textureNumber < 10 ? "0" + textureNumber : textureNumber) + textureName.substr(textureName.indexOf('0') + 2)
-      if (!(textureName in textures)) {
-        textureName = vanillaTextureName
-      }
-    }
-    if (textureName.indexOf('he', 3) !== -1 && (textureFace > 0 || textureFace === 0 && !(textureName in textures))) {
-      textureName = vanillaTextureName.substr(0, 7) + textureFace + vanillaTextureName.substr(8)
-      if (!(textureName in textures)) {
-        textureName = vanillaTextureName
-      }
-    }
-    if (this.material_cache[textureName]) return this.material_cache[textureName]
-    let data = null
-    for (let t in textures) {
-      if (t.toLowerCase() === textureName) {
-        data = textures[t]
-      }
-    }
-    return this.loadTextureMaterial(textureName, data, textureInfo)
-  }
-
-  loadTextureMaterial(textureName, data, textureInfo) {
-    let textureFire = textureName.indexOf("fire") !== -1
-    let textureRaw = data
-    if (!textureRaw) return new MeshBasicMaterial()
-    let textureBuffer = new Buffer(textureRaw)
-    let alphaBuffer = new Buffer(textureRaw)
-    if (alphaBuffer) {
-      let textureType = String.fromCharCode(alphaBuffer.readInt8(0)) + String.fromCharCode(alphaBuffer.readInt8(1))
-      if (textureType === 'BM' && textureInfo.masked) {
-        //let bSize = alphaBuffer.readUInt16LE(2)
-        //let bOffset = alphaBuffer.readUInt16LE(10)
-        let bHSize = alphaBuffer.readUInt16LE(14)
-        let bDepth = alphaBuffer.readInt8(28)
-        let bColorTableCount = alphaBuffer.readUInt16LE(46) || Math.pow(2, bDepth)
-        let bColorTableOffset = 14 + bHSize
-        let bTransparentIndex = 0//alphaBuffer.readUInt8(bOffset)
-        for (let i = 0; i < bColorTableCount; i++) {
-          let bNewColor = i === bTransparentIndex ? 0x00 : 0xFF
-          alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + i * 4)
-          alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + 1 + i * 4)
-          alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + 2 + i * 4)
-          alphaBuffer.writeUInt8(bNewColor, bColorTableOffset + 3 + i * 4)
-        }
-      }
-    }
-    let textureData = textureBuffer ? textureBuffer.toString('base64') : null
-    let textureURI = `data:image/bmp;base64,${textureData}`
-    let alphaData = alphaBuffer ? alphaBuffer.toString('base64') : null
-    let alphaURI = `data:image/bmp;base64,${alphaData}`
-    let texture = new THREE.Texture()
-    texture.wrapS = THREE.RepeatWrapping
-    texture.wrapT = THREE.RepeatWrapping
-    let textureImageElem = new Image()
-    textureImageElem.onload = () => {
-      texture.image = textureImageElem
-      texture.needsUpdate = true
-    }
-    textureImageElem.src = textureURI
-    let alpha = new THREE.Texture()
-    let alphaImageElem = new Image()
-    alphaImageElem.onload = () => {
-      alpha.image = alphaImageElem
-      alpha.needsUpdate = true
-    }
-    if (textureFire) {
-      alphaImageElem.src = textureURI
-      alpha.format = THREE.LuminanceFormat
-    } else {
-      alphaImageElem.src = alphaURI
-    }
-    alpha.wrapS = THREE.RepeatWrapping
-    alpha.wrapT = THREE.RepeatWrapping
-    this.material_cache[textureName] =  new THREE.MeshLambertMaterial({
-      map: texture,
-      ...(textureInfo.masked ? {alphaMap: alpha} : {}),
-      ...((!textureInfo.apparentlyNotTransparent || textureInfo.masked) ? {transparent: 1} : {}),
-      ...(!textureInfo.apparentlyNotTransparent ? {opacity: 0} : {}),
-      alphaTest: 0.8
-    })
-    return this.material_cache[textureName]
   }
 
   onFinishLoading() {
@@ -362,6 +210,15 @@ export default class Scene extends EventEmitter {
   render() {
     let delta = this.clock.getDelta()
     this.renderer.render(this.scene, this.camera.object)
+    for (let g of this.gifs) {
+      g.currentTime += delta * 1000
+      if (g.currentTime > g.frameTime) {
+        g.currentTime = 0
+        g.currentFrame = (g.currentFrame + 1) % g.frames.length
+        g.ctx.drawImage(g.frames[g.currentFrame], 0, 0)
+        g.texture.needsUpdate = true
+      }
+    }
     this.emit('render', [delta])
   }
 

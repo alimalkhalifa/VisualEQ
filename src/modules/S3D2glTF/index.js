@@ -4,13 +4,13 @@ const THREE = require('three')
 const GLTFExporter = require('../GLTFExporter')
 const loadS3D = require('./loaders/s3d')
 const loadWLD = require('./loaders/wld')
-
-let material = new THREE.MeshBasicMaterial({})
+const { Image } = require('canvas')
 
 function convertDir(dir, out, highmem) {
   try {
     fs.statSync(out)
   } catch(err) {
+    console.log("out dir not found")
     fs.mkdirSync(out)
   }
   fs.readdir(dir, (err, files) => {
@@ -37,9 +37,13 @@ async function convertS3D(path, out) {
   let type = 'zone'
   if (path.indexOf('_chr') !== -1) type = 'chr'
   else if (path.indexOf('_obj') !== -1) type = 'obj'
+  if (type === "chr") {
+    out = 'graphics/characters'
+  }
   try {
     fs.statSync(out)
   } catch(err) {
+    console.error('out dir not found')
     fs.mkdirSync(out)
   }
   let s3d = await loadS3D(path)
@@ -49,7 +53,7 @@ async function convertS3D(path, out) {
       setImmediate(() => convertZoneToglTF(s3dName, s3d, out))
       break
     case 'chr':
-      //setImmediate(() => convertChrToglTFs(s3dName, s3d, out))
+      setImmediate(() => convertChrToglTFs(s3dName, s3d, out))
       break
     case 'obj':
       setImmediate(() => convertObjToglTFs(s3dName, s3d, out))
@@ -64,6 +68,7 @@ async function extractTextures(name, type, s3d, out) {
   try {
     fs.statSync(`${out}/textures`)
   } catch(_) {
+    console.error('out dir not found')
     fs.mkdirSync(`${out}/textures`)
   }
   for (let fileName in s3d.files) {
@@ -72,6 +77,7 @@ async function extractTextures(name, type, s3d, out) {
       if (buf.length > 0) {
         jimp.read(buf, (err, bmp) => {
           if (err) {
+            console.log(err)
             fs.writeFileSync(`${out}/textures/${fileName.substr(0, fileName.indexOf('.bmp'))}.dds`, buf, err => {
               if (err) throw new Error(err)
             })
@@ -79,14 +85,14 @@ async function extractTextures(name, type, s3d, out) {
           }
           bmp.write(`${out}/textures/${fileName.substr(0, fileName.indexOf('.bmp'))}.png`)
           if (fileName.indexOf("fire") !== -1) {
-            bmp.greyscale((err, grey) => {
-              grey.scan(0, 0, grey.bitmap.width, grey.bitmap.height, function(x, y, idx) {
-                let val = Math.pow(this.bitmap.data[idx]/255, 1/4) * 255
-                this.bitmap.data[idx] = val
-                this.bitmap.data[idx+1] = val
-                this.bitmap.data[idx+2] = val
-              }, (err, newImg) => newImg.write(`${out}/textures/${fileName.substr(0, fileName.indexOf('.bmp'))}_alpha.png`)
-              )
+            bmp.scan(0, 0, bmp.bitmap.width, bmp.bitmap.height, function(x, y, idx) {
+              let hsl = {}
+              hsl = new THREE.Color(this.bitmap.data[idx]/255, this.bitmap.data[idx+1]/255, this.bitmap.data[idx+2]/255).getHSL(hsl)
+              let val = Math.pow(hsl.l, 1/4) * 255
+              this.bitmap.data[idx+3] = val
+            }, (err, newImg) => {
+              if (err) throw new Error(err)
+              return newImg.write(`${out}/textures/${fileName.substr(0, fileName.indexOf('.bmp'))}_alpha.png`)
             })
           } else {
             let idxTrans = [-1, -1, -1, -1]
@@ -104,16 +110,14 @@ async function extractTextures(name, type, s3d, out) {
                 idxTuple[2] === idxTrans[2] &&
                 idxTuple[3] === idxTrans[3]
               ) {
-                this.bitmap.data[idx] = 0
-                this.bitmap.data[idx+1] = 0
-                this.bitmap.data[idx+2] = 0
+                this.bitmap.data[idx+3] = 0
               } else {
-                this.bitmap.data[idx] = 255
-                this.bitmap.data[idx+1] = 255
-                this.bitmap.data[idx+2] = 255
+                this.bitmap.data[idx+3] = 255
               }
-            }, (err, newImg) => newImg.write(`${out}/textures/${fileName.substr(0, fileName.indexOf('.bmp'))}_alpha.png`)
-            )
+            }, (err, newImg) => {
+              if (err) throw new Error(err)
+              newImg.write(`${out}/textures/${fileName.substr(0, fileName.indexOf('.bmp'))}_alpha.png`)
+            })
           }
         })
       }
@@ -122,39 +126,29 @@ async function extractTextures(name, type, s3d, out) {
 }
 
 function convertZoneToglTF(zoneName, s3d, out) {
-  let doneGif = []
   console.log(`Converting ${zoneName}`)
   let wld = s3d.files[`${zoneName}.wld`]
   let obj = s3d.files['objects.wld']
   let zone = loadWLD(wld)
   let objects = loadWLD(obj)
   let scene = new THREE.Scene()
-  let textures = {}
+  let materialCache = {}
+  let imageCache = {}
   for (let fragIndex in zone) {
     let fragment = zone[fragIndex]
     if (fragment.type === "Mesh") {
-      let meshes = loadWLDMesh(fragment, fragIndex, zone)
-      let group = new THREE.Group()
-      for (let name in meshes.textures) {
-        if (!(name in textures)) {
-          textures[name] = meshes.textures[name]
-        }
-      }
-      for (let mesh of meshes.meshes) {
-        mesh.userData.levelgeometry = true
-        group.add(mesh)
-      }
-      scene.add(group)
+      let mesh = loadWLDMesh(fragment, zone, materialCache, imageCache)
+      scene.add(mesh)
     }
   }
-  scene.userData.textures = textures
   let objectLocations = []
   for (let fragIndex in objects) {
     let fragment = objects[fragIndex]
     if (fragment.type === "ObjectLocation") {
       objectLocations.push({
         name: fragment.ref,
-        position: [fragment.x,
+        position: [
+          fragment.x,
           fragment.y,
           fragment.z
         ],
@@ -174,11 +168,12 @@ function convertZoneToglTF(zoneName, s3d, out) {
   scene.userData.objectLocations = objectLocations
   const exporter = new GLTFExporter()
   exporter.parse(scene, gltf => {
-    fs.writeFile(`${out}/${zoneName}.gltf`, JSON.stringify(gltf), err => {
+    fs.writeFile(`${out}/${zoneName}.glb`, Buffer.from(gltf), err => {
       if (err) throw new Error(err)
     })
   }, {
-    embedImages: false
+    embedImages: false,
+    binary: true
   })
 }
 
@@ -187,50 +182,80 @@ function convertObjToglTFs(zoneName, s3d, out) {
   let wld = s3d.files[`${zoneName}_obj.wld`]
   let zone = loadWLD(wld)
   let scene = new THREE.Scene()
-  let textures = {}
+  let materialCache = {}
+  let imageCache = {}
   for (let fragIndex in zone) {
     let fragment = zone[fragIndex]
     if (fragment.type === "StaticModelRef") {
       let meshRef = fragment.meshReferences[0]
       let meshInfo = zone[zone[meshRef].mesh]
-      let group = new THREE.Group()
       if (meshInfo) {
-        let meshes = loadWLDMesh(meshInfo, fragIndex, zone)
-        for (let name in meshes.textures) {
-          if (!(name in textures)) {
-            textures[name] = meshes.textures[name]
-          }
-        }
-        for (let mesh of meshes.meshes) {
-          mesh.userData.staticobject = true
-          group.add(mesh)
-        }
-      }
-      if (group.children.length > 0) {
-        group.name = fragment.name
-        scene.add(group)
+        let mesh = loadWLDMesh(meshInfo, zone, materialCache, imageCache)
+        mesh.name = fragment.name
+        scene.add(mesh)
       }
     }
   }
-  scene.userData.textures = textures
   const exporter = new GLTFExporter()
   exporter.parse(scene, gltf => {
-    fs.writeFile(`${out}/${zoneName}_obj.gltf`, JSON.stringify(gltf), err => {
+    fs.writeFile(`${out}/${zoneName}_obj.glb`, Buffer.from(gltf), err => {
       if (err) throw new Error(err)
     })
   }, {
-    embedImages: false
+    embedImages: false,
+    binary: true
   })
 }
 
-function loadWLDMesh(fragment, fragIndex, wld, skeletonEntries = []) {
-  let meshes = []
-  let textures = {}
+function convertChrToglTFs(zoneName, s3d, out) {
+  console.log(`Converting ${zoneName}_chr`)
+  let wld = s3d.files[`${zoneName}_chr.wld`]
+  let zone = loadWLD(wld)
+  let materialCache = {}
+  let imageCache = {}
+  for (let fragIndex in zone) {
+    let fragment = zone[fragIndex]
+    if (fragment.type === "StaticModelRef") {
+      let raceCode = fragment.name.substr(0, fragment.name.indexOf('_'))
+      //console.log(`Loading ${raceCode}`)
+      let skeletonFragment = zone[zone[fragment.meshReferences[0]].skeletonTrack]
+      let entries = skeletonFragment ? skeletonFragment.entries : []
+      if (entries.length > 0) {
+        let stem = entries[0]
+        walkSkeleton(zone, entries, stem)
+      }
+      let scene = new THREE.Scene()
+      let group = new THREE.Group()
+      group.name = raceCode
+      for (let i = 0; i < Object.keys(zone).length; i++) {
+        let f = zone[i]
+        if (f.type === "Mesh" && f.name.indexOf(raceCode) !== -1) {
+          let helmchr = f.name.substr(3, f.name.indexOf('_') - 3)
+          let helm = helmchr.length == 0 ? "BASE" : helmchr.indexOf("HE") !== -1 ? helmchr : `BO${helmchr}`
+          let mesh =  loadWLDMesh(f, zone, materialCache, imageCache, entries)
+          mesh.userData.helm = helm
+          group.add(mesh)
+        }
+      }
+      scene.add(group)
+      const exporter = new GLTFExporter()
+      exporter.parse(scene, gltf => {
+        fs.writeFile(`${out}/${raceCode}.glb`, Buffer.from(gltf), err => {
+          if (err) throw new Error(err)
+        })
+      }, {
+        embedImages: false,
+        binary: true
+      })
+    }
+  }
+}
+
+function loadWLDMesh(fragment, wld, materialCache, imageCache, skeletonEntries = []) {
   fragment.textureListRef = wld[fragment.textureList]
   for (let t in fragment.polygonTextures) {
     fragment.polygonTextures[t].texture = wld[fragment.textureListRef.textureInfoRefsList[fragment.polygonTextures[t].textureIndex]]
     let textureInfoRef = wld[fragment.polygonTextures[t].texture.textureInfoRef]
-    //console.log(fragment.polygonTextures)
     if (textureInfoRef) {
       fragment.polygonTextures[t].textureInfo = wld[textureInfoRef.textureInfo]
       let texturePathsRef = fragment.polygonTextures[t].textureInfo.texturePaths
@@ -244,6 +269,7 @@ function loadWLDMesh(fragment, fragIndex, wld, skeletonEntries = []) {
   if (skeletonEntries.length > 0) {
     for (let piece of fragment.vertexPieces) {
       let skelPiece = wld[wld[skeletonEntries[piece.pieceIndex].Fragment1].skeletonPieceTrack]
+      // console.log(skelPiece) // ANIMATION DEBUG
       for (let i = 0; i < piece.vertexCount; i++) {
         let vertex = fragment.vertices[vertexPiecesCursor]
         let v = new THREE.Vector3(vertex.x, vertex.y, vertex.z).multiplyScalar(1.0 / (1 << fragment.scale))
@@ -254,7 +280,6 @@ function loadWLDMesh(fragment, fragIndex, wld, skeletonEntries = []) {
       }
     }
   }
-  let polygons = fragment.polygons
   let scale = 1.0 / (1 << fragment.scale)
   let centerX = fragment.centerX
   let centerY = fragment.centerY
@@ -263,60 +288,119 @@ function loadWLDMesh(fragment, fragIndex, wld, skeletonEntries = []) {
   let vertices = []
   let normals = []
   let uvs = []
-  let polygonTexCount = 0
-  let polygonTexIndex = 0
-  for (let i = 0; i < polygons.length; i++) {
-    let p = polygons[i]
-    let vertex1 = fragment.vertices[p.vertex3]
-    let vertex2 = fragment.vertices[p.vertex2]
-    let vertex3 = fragment.vertices[p.vertex1]
-    let normal1 = new THREE.Vector3().copy(fragment.vertexNormals[p.vertex3]).normalize()
-    let normal2 = new THREE.Vector3().copy(fragment.vertexNormals[p.vertex2]).normalize()
-    let normal3 = new THREE.Vector3().copy(fragment.vertexNormals[p.vertex1]).normalize()
-    let uv1 = fragment.textureCoords[p.vertex3]
-    let uv2 = fragment.textureCoords[p.vertex2]
-    let uv3 = fragment.textureCoords[p.vertex1]
-    vertices.push(
-      vertex1.x * scale + centerX, vertex1.y * scale + centerY, vertex1.z * scale + centerZ,
-      vertex2.x * scale + centerX, vertex2.y * scale + centerY, vertex2.z * scale + centerZ,
-      vertex3.x * scale + centerX, vertex3.y * scale + centerY, vertex3.z * scale + centerZ
-    )
-    normals.push(
-      normal1.x, normal1.y, normal1.z,
-      normal2.x, normal2.y, normal2.z,
-      normal3.x, normal3.y, normal3.z
-    )
+  let colors = []
+  let indices = []
+  for (let v of fragment.vertices) {
+    vertices.push(v.x * scale + centerX, v.y * scale + centerY, v.z * scale + centerZ)
+  }
+  for (let n of fragment.vertexNormals) {
+    normals.push(n.x, n.y, n.z)
+  }
     let uvDivisor = 256.0
-    if (uv1, uv2, uv3) {
-      uvs.push(
-        uv1.x / uvDivisor, uv1.z / uvDivisor,
-        uv2.x / uvDivisor, uv2.z / uvDivisor,
-        uv3.x / uvDivisor, uv3.z / uvDivisor,
-      )
-    }
-    polygonTexCount++
-    if (polygonTexCount >= fragment.polygonTextures[polygonTexIndex].polygonCount) {
-      geometry.addAttribute('position', new THREE.BufferAttribute(new Float32Array(vertices), 3))
-      //geometry.addAttribute('normal', new THREE.BufferAttribute(new Float32Array(normals), 3))
-      geometry.addAttribute('uv', new THREE.BufferAttribute(new Float32Array(uvs), 2))
-      geometry.computeBoundingBox()
-      var mesh = new THREE.Mesh(geometry, material)
-      //mesh.userData.textureFile = fragment.polygonTextures[polygonTexIndex].texturePaths ? fragment.polygonTextures[polygonTexIndex].texturePaths[0].files[0].toLowerCase() : null
-      let texture = fragment.polygonTextures[polygonTexIndex]
-      if (!(texture.texture.name in textures)) {
-        textures[texture.texture.name] = texture
-      }
-      mesh.userData.texture = texture.texture.name // textures[polygonTexIndex]
-      meshes.push(mesh)
-      geometry = new THREE.BufferGeometry()
-      vertices = []
-      normals = []
-      uvs = []
-      polygonTexIndex++
-      polygonTexCount = 0
+  if (fragment.texCoordsCount > 0) {
+    for (let u of fragment.textureCoords) {
+      uvs.push(u.x / uvDivisor, -u.z / uvDivisor)
     }
   }
-  return { meshes, textures }
+  if (fragment.colorCount > 0) {
+    for (let cHex of fragment.vertexColors) {
+      let c = new THREE.Color(cHex)
+      colors.push(c.r, c.g, c.b)
+    }
+  }
+  for (let p of fragment.polygons) {
+    indices.push(p.vertex3, p.vertex2, p.vertex1)
+  }
+  geometry.setIndex(indices)
+  geometry.addAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))
+  geometry.addAttribute('normal', new THREE.Float32BufferAttribute(normals, 3))
+  geometry.addAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
+  //if (colors.length > 0) geometry.addAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+  geometry.normalizeNormals()
+  let groupStart = 0
+  let textures = []
+  for (let i = 0; i < fragment.polygonTexCount; i++) {
+    geometry.addGroup(
+      groupStart*3,
+      fragment.polygonTextures[i].polygonCount*3,
+      i
+    )
+    groupStart += fragment.polygonTextures[i].polygonCount
+    if (fragment.polygonTextures[i].texturePaths) {
+      textures.push({
+        texture: fragment.polygonTextures[i].texture,
+        textureInfo: fragment.polygonTextures[i].textureInfo,
+        texturePaths: fragment.polygonTextures[i].texturePaths
+      })
+    }
+  }
+  geometry.computeBoundingBox()
+  //geometry.computeBoundingSphere()
+  let materials = []
+  for (let texture of textures) {
+    if (!(texture.texture.name in materialCache)) {
+      let path = texture.texture.masked ?
+        `textures/${texture.texturePaths[0].files[0].substr(0, texture.texturePaths[0].files[0].indexOf('.')).toLowerCase()}_alpha.png` :
+        `textures/${texture.texturePaths[0].files[0].substr(0, texture.texturePaths[0].files[0].indexOf('.')).toLowerCase()}.png`
+      if (!(path in imageCache)) {
+        let img = new Image()
+        img.src = path
+        imageCache[path] = img
+      }
+      let tex = new THREE.Texture(imageCache[path])
+      tex.wrapS = THREE.RepeatWrapping
+      tex.wrapT = THREE.RepeatWrapping
+      tex.magFilter = THREE.LinearFilter
+      tex.minFilter = THREE.LinearFilter
+      let material = new THREE.MeshBasicMaterial({
+        ...(tex ? {map: tex} : {}),
+        //...((texture.texture.masked && alpha) ? {alphaMap: alpha} : {}),
+        ...((!texture.texture.apparentlyNotTransparent || texture.texture.masked) ? {transparent: 1} : {}),
+        ...(!texture.texture.apparentlyNotTransparent ? {opacity: 0} : {}),
+        ...((texture.texture.masked) ? {alphaTest: 0.8} : {}),
+      })
+      if (texture.textureInfo.animatedFlag) {
+        let frames = []
+        for (let framePath of texture.texturePaths) {
+          let p = texture.texture.masked ?
+          `${framePath.files[0].substr(0, framePath.files[0].indexOf('.')).toLowerCase()}_alpha.png` :
+            `${framePath.files[0].substr(0, framePath.files[0].indexOf('.')).toLowerCase()}.png`
+          frames.push(p)
+        }
+        let frameTime = texture.textureInfo.frameTime
+        material.userData.textureAnimation = {
+          name: texture.texture.name,
+          frames,
+          frameTime
+        }
+      }
+      materialCache[texture.texture.name] = material
+    }
+    materials.push(materialCache[texture.texture.name])
+  }
+  let mesh = new THREE.Mesh(geometry, materials)
+  mesh.name = fragment.name
+  return mesh
+}
+
+function walkSkeleton(chr, entries, bone, parentShift = new THREE.Vector3(), parentRot = new THREE.Euler(0, 0, 0, 'YXZ')) {
+  let pieceRef = chr[bone.Fragment1]
+  let piece = chr[pieceRef.skeletonPieceTrack]
+  piece.shift = new THREE.Vector3(piece.shiftX[0], piece.shiftY[0], piece.shiftZ[0]).divideScalar(piece.shiftDenominator[0])
+  piece.shift.applyEuler(parentRot)
+  piece.shift.add(parentShift)
+  let rotVector = new THREE.Vector3(piece.rotateX[0], piece.rotateY[0], piece.rotateZ[0]).divideScalar(piece.rotateDenominator).multiplyScalar(Math.PI / 2)
+  rotVector.add(parentRot.toVector3())
+  piece.rot = new THREE.Euler().setFromVector3(rotVector, 'YXZ')
+  for (let b of bone.Data) {
+    walkSkeleton(
+      chr,
+      entries,
+      entries[b],
+      piece.shift,
+      piece.rot
+    )
+  }
 }
 
 module.exports = {

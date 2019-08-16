@@ -42,8 +42,6 @@ export default class Scene extends EventEmitter {
 
     this.selector = new Selector()
 
-    this.ambientLight = new THREE.AmbientLight( 0xffffff, 1 )
-    this.scene.add( this.ambientLight )
     this.scene.background = new THREE.Color().setHex(0x82eaff)
     this.scene.fog = new THREE.Fog(new THREE.Color().setHex(0x82eaff), 4000, 5000)
 
@@ -56,6 +54,8 @@ export default class Scene extends EventEmitter {
     this.updateZoneS3D()
 
     this.renderer = new THREE.WebGLRenderer()
+    this.renderer.gammaOutput = true
+    this.renderer.gammaFactor = 2.2
     this.viewport = document.getElementById('viewport')
     this.renderer.setSize( this.viewport.clientWidth, this.viewport.clientHeight )
     this.viewport.appendChild( this.renderer.domElement )
@@ -93,10 +93,10 @@ export default class Scene extends EventEmitter {
 
   updateZoneS3D() {
     let loader = new GLTFLoader()
-    loader.load(`graphics/${store.getState().zone}/${store.getState().zone}.gltf`, gltf => {
+    loader.load(`graphics/${store.getState().zone}/${store.getState().zone}.glb`, gltf => {
       this.scene.add(gltf.scene)
       this.loadSceneMaterials(gltf.scene)
-      loader.load(`graphics/${store.getState().zone}/${store.getState().zone}_obj.gltf`, objgltf => {
+      loader.load(`graphics/${store.getState().zone}/${store.getState().zone}_obj.glb`, objgltf => {
         this.loadSceneMaterials(objgltf.scene)
         let objectLocations = gltf.scene.userData.objectLocations
         for (let obj of objectLocations) {
@@ -120,79 +120,34 @@ export default class Scene extends EventEmitter {
   }
 
   loadSceneMaterials(scene) {
+    let doneMaterials = []
     scene.traverse(child => {
-      if (child.userData.texture) {
-        if (!(child.userData.texture in this.material_cache)) {
-          let texInfo = scene.userData.textures[child.userData.texture]
-          let texture
-          let alpha
-          if (texInfo.texturePaths) {
-            if (texInfo.textureInfo.animatedFlag) {
-              texture = new THREE.Texture()
-              texture.wrapS = THREE.RepeatWrapping
-              texture.wrapT = THREE.RepeatWrapping
-              if (texInfo.texture.masked) {
-                alpha = new THREE.Texture()
-                alpha.wrapS = THREE.RepeatWrapping
-                alpha.wrapT = THREE.RepeatWrapping
-              }
-              jimp.read(`graphics/${store.getState().zone}/textures/${texInfo.texturePaths[0].files[0].toLowerCase().substr(0, texInfo.texturePaths[0].files[0].toLowerCase().indexOf('.bmp'))}.png`).then(img0 => {
-                let gifImage = document.createElement('canvas')
-                gifImage.width = img0.bitmap.width
-                gifImage.height = img0.bitmap.height
-                let ctx = gifImage.getContext('2d')
-                ctx.fillStyle = '#CCCCCC'
-                ctx.fillRect(0, 0, img0.bitmap.width, img0.bitmap.height)
-                texture.image = gifImage
-                texture.needsUpdate = true
-                let frames = []
-                for (let path of texInfo.texturePaths) {
-                  let f = new Image()
-                  f.src = `graphics/${store.getState().zone}/textures/${path.files[0].toLowerCase().substr(0, path.files[0].toLowerCase().indexOf('.bmp'))}.png`
-                  frames.push(f)
-                }
-                this.gifs.push({texture, gif: gifImage, ctx, frames, frameTime: texInfo.textureInfo.frameTime, currentTime: texInfo.textureInfo.frameTime, currentFrame: 0})
-                if (texInfo.texture.masked) {
-                  let gifAImage = document.createElement('canvas')
-                  gifAImage.width = img0.bitmap.width
-                  gifAImage.height = img0.bitmap.height
-                  let ctxA = gifAImage.getContext('2d')
-                  ctxA.fillStyle = '#CCCCCC'
-                  ctxA.fillRect(0, 0, img0.bitmap.width, img0.bitmap.height)
-                  alpha.image = gifAImage
-                  alpha.needsUpdate = true
-                  let framesA = []
-                  for (let path of texInfo.texturePaths) {
-                    let f = new Image()
-                    f.src = `graphics/${store.getState().zone}/textures/${path.files[0].toLowerCase().substr(0, path.files[0].toLowerCase().indexOf('.bmp'))}_alpha.png`
-                    framesA.push(f)
-                  }
-                  this.gifs.push({texture: alpha, gif: gifAImage, ctx: ctxA, frames: framesA, frameTime: texInfo.textureInfo.frameTime, currentTime: texInfo.textureInfo.frameTime, currentFrame: 0})
-                }
-              })
-            } else {
-              let textureFile = texInfo.texturePaths[0].files[0].toLowerCase()
-              texture = new THREE.TextureLoader().load(`graphics/${store.getState().zone}/textures/${textureFile.substr(0, textureFile.indexOf('.bmp'))}.png`)
-              texture.wrapS = THREE.RepeatWrapping
-              texture.wrapT = THREE.RepeatWrapping
-              if (texInfo.texture.masked) {
-                alpha = new THREE.TextureLoader().load(`graphics/${store.getState().zone}/textures/${textureFile.substr(0, textureFile.indexOf('.bmp'))}_alpha.png`)
-                alpha.wrapS = THREE.RepeatWrapping
-                alpha.wrapT = THREE.RepeatWrapping
-                alpha.magFilter = THREE.NearestFilter
-                alpha.minFilter = THREE.NearestFilter
-              }
-            }
+      if (child.material && child.material.userData.textureAnimation && doneMaterials.indexOf(child.material) === -1) {
+        let texture
+        texture = new THREE.Texture()
+        texture.wrapS = THREE.RepeatWrapping
+        texture.wrapT = THREE.RepeatWrapping
+        let anim = child.material.userData.textureAnimation
+        jimp.read(`graphics/${store.getState().zone}/textures/${anim.frames[0]}`).then(img0 => {
+          let gifImage = document.createElement('canvas')
+          gifImage.width = img0.bitmap.width
+          gifImage.height = img0.bitmap.height
+          let ctx = gifImage.getContext('2d')
+          ctx.fillStyle = '#CCCCCC'
+          ctx.fillRect(0, 0, img0.bitmap.width, img0.bitmap.height)
+          texture.image = gifImage
+          texture.needsUpdate = true
+          let frames = []
+          for (let path of anim.frames) {
+            let f = new Image()
+            f.src = `graphics/${store.getState().zone}/textures/${path}`
+            console.log(path)
+            frames.push(f)
           }
-          this.material_cache[child.userData.texture] = new THREE.MeshLambertMaterial({
-            ...(texture ? {map: texture} : {}),
-            ...((texInfo.texture.masked && alpha) ? {alphaMap: alpha} : {}),
-            ...((!texInfo.texture.apparentlyNotTransparent || texInfo.texture.masked) ? {transparent: 1} : {}),
-            ...(!texInfo.texture.apparentlyNotTransparent ? {opacity: 0} : {}),
-            alphaTest: 0.8
-          })
-        }
-        child.material = this.material_cache[child.userData.texture] 
+          this.gifs.push({texture, gif: gifImage, ctx, frames, frameTime: anim.frameTime, currentTime: anim.frameTime, currentFrame: 0})
+          child.material.map = texture
+          doneMaterials.push(child.material)
+        })
       }
     })
   }
@@ -260,7 +215,7 @@ export default class Scene extends EventEmitter {
         let geo = new THREE.SphereGeometry(2, 8, 8)//new THREE.CylinderGeometry(2 * npc.size > 0 ? npc.size/6.0 : 1, 2 * npc.size > 0 ? npc.size/6.0 : 1, 6 * npc.size > 0 ? npc.size/6.0 : 1)
         //geo.rotateX(THREE.Math.degToRad(90))
         //geo.translate(0, 0, 1)
-        let mat = new THREE.MeshLambertMaterial({color: new THREE.Color(1, 1, 0).getHex(), transparent: true, opacity: 0.5, alphaTest: 0.2})
+        let mat = new THREE.MeshBasicMaterial({color: new THREE.Color(1, 1, 0), transparent: true, opacity: 0.5, alphaTest: 0.2})
         let base = new THREE.Mesh(geo, mat)
         base.position.set(spawn.y, spawn.x, spawn.z /* - Helper.getZOffset(npc.race) */) // Offset
         base.userData.selectable = true

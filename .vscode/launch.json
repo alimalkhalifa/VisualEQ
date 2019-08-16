@@ -8,7 +8,7 @@
       "type": "node",
       "request": "launch",
       "name": "Launch Program",
-      "program": "${workspaceFolder}\\src\\modules\\S3D2glTF\\tests\\index.js"
+      "program": "${workspaceFolder}\\src\\server\\index.js"
     }
   ]
 }

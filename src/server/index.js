@@ -25,7 +25,12 @@ process.argv.forEach(val=> {
   if (val === '--skip-convert') flags.skipconvert = true
 })
 if (!flags.skipconvert) {
-  convertDir('zones', 'graphics', flags.highmem)
+  try {
+    convertDir('zones', 'graphics', flags.highmem)
+  } catch(err) {
+    console.error(err)
+    throw new Error(err)
+  }
 }
 
 app.listen(port, () => {

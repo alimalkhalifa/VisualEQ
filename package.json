@@ -4,10 +4,11 @@
   "main": "src/server/index.js",
   "license": "MIT",
   "scripts": {
-    "start": "node src/server/index.js",
-    "start:highmem": "node --max-old-space-size=8192 src/server/index.js --highmem",
+    "start": "node src/server/index.js --experimental-worker",
+    "start:highmem": "node --experimental-worker --max-old-space-size=8192 src/server/index.js --highmem",
     "start:skipconvert": "node src/server/index.js --skip-convert",
     "build": "parcel build src/app/index.html",
+    "build:watch": "parcel watch src/app/index.html",
     "dev": "yarn build && yarn start",
     "dev:skipconvert": "yarn build && yarn start:skipconvert",
     "dev:highmem": "yarn build && yarn start:highmem",

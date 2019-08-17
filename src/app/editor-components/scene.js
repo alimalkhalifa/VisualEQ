@@ -141,7 +141,6 @@ export default class Scene extends EventEmitter {
           for (let path of anim.frames) {
             let f = new Image()
             f.src = `graphics/${store.getState().zone}/textures/${path}`
-            console.log(path)
             frames.push(f)
           }
           this.gifs.push({texture, gif: gifImage, ctx, frames, frameTime: anim.frameTime, currentTime: anim.frameTime, currentFrame: 0})

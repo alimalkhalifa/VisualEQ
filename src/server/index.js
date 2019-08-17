@@ -36,3 +36,7 @@ if (!flags.skipconvert) {
 app.listen(port, () => {
   console.log(`Server started on port ${port}`)
 })
+
+process.on('uncaughtException', err => {
+  console.error(err)
+})

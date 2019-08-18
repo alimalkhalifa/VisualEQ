@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "start": "node --experimental-worker src/server/index.js",
-    "start:skipconvert": "node src/server/index.js --skip-convert",
+    "start:skipconvert": "node --experimental-worker src/server/index.js --skip-convert",
     "build": "parcel build src/app/index.html",
     "build:watch": "parcel watch src/app/index.html",
     "dev": "yarn build && yarn start",

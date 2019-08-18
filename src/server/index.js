@@ -8,7 +8,8 @@ const spawngroup = require('./routes/spawngroup')
 const npc = require('./routes/npc')
 
 let flags = {
-  skipconvert: false
+  skipconvert: false,
+  noclient: false
 }
 
 app.use('/zone', zone)
@@ -21,6 +22,7 @@ app.use('/static', express.static('./static'))
 app.use('/graphics', express.static('graphics'))
 process.argv.forEach(val=> {
   if (val === '--skip-convert') flags.skipconvert = true
+  if (val === '--no-client') flags.noclient = true
 })
 if (!flags.skipconvert) {
   try {
@@ -31,9 +33,11 @@ if (!flags.skipconvert) {
   }
 }
 
-app.listen(port, () => {
-  console.log(`Server started on port ${port}`)
-})
+if (!flags.noclient) {
+  app.listen(port, () => {
+    console.log(`Server started on port ${port}`)
+  })
+}
 
 process.on('uncaughtException', err => {
   console.error(err)

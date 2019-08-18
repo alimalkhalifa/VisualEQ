@@ -6,13 +6,15 @@
   "scripts": {
     "start": "node --experimental-worker src/server/index.js",
     "start:skipconvert": "node --experimental-worker src/server/index.js --skip-convert",
+    "start:noclient": "node --experimental-worker src/server/index.js --no-client",
     "build": "parcel build src/app/index.html",
     "build:watch": "parcel watch src/app/index.html",
     "dev": "yarn build && yarn start",
     "dev:skipconvert": "yarn build && yarn start:skipconvert",
     "nodemon": "nodemon -w src --ext js,html --exec yarn dev",
     "nodemon:skipconvert": "nodemon -w src --ext js,html --exec yarn dev:skipconvert",
-    "nodemon:nobuild": "nodemon -w src --ext js,html --exec yarn start"
+    "nodemon:nobuild": "nodemon -w src --ext js,html --exec yarn start",
+    "nodemon:noclient": "nodemon -w src --ext js,html --exec yarn start:noclient"
   },
   "dependencies": {
     "canvas": "^2.5.0",

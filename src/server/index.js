@@ -8,7 +8,6 @@ const spawngroup = require('./routes/spawngroup')
 const npc = require('./routes/npc')
 
 let flags = {
-  highmem: false,
   skipconvert: false
 }
 
@@ -21,12 +20,11 @@ app.use('/static', express.static('./static'))
 
 app.use('/graphics', express.static('graphics'))
 process.argv.forEach(val=> {
-  if (val === '--highmem') flags.highmem = true
   if (val === '--skip-convert') flags.skipconvert = true
 })
 if (!flags.skipconvert) {
   try {
-    convertDir('zones', 'graphics', flags.highmem)
+    convertDir('zones', 'graphics')
   } catch(err) {
     console.error(err)
     throw new Error(err)

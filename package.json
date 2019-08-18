@@ -5,17 +5,13 @@
   "license": "MIT",
   "scripts": {
     "start": "node --experimental-worker src/server/index.js",
-    "start:highmem": "node --experimental-worker --max-old-space-size=8192 src/server/index.js --highmem",
     "start:skipconvert": "node src/server/index.js --skip-convert",
     "build": "parcel build src/app/index.html",
     "build:watch": "parcel watch src/app/index.html",
     "dev": "yarn build && yarn start",
     "dev:skipconvert": "yarn build && yarn start:skipconvert",
-    "dev:highmem": "yarn build && yarn start:highmem",
     "nodemon": "nodemon -w src --ext js,html --exec yarn dev",
-    "nodemon:highmem": "nodemon -w src --ext js,html --exec yarn dev:highmem",
-    "nodemon:skipconvert": "nodemon -w src --ext js,html --exec yarn dev:skipconvert",
-    "test": "npx nodemon -w test --target node --bundle-node-modules --exec \"parcel build --out-dir test-build test/index.js && node test-build/index.js\""
+    "nodemon:skipconvert": "nodemon -w src --ext js,html --exec yarn dev:skipconvert"
   },
   "dependencies": {
     "canvas": "^2.5.0",

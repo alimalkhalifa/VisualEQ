@@ -1,7 +1,5 @@
 /node_modules
 /.cache
 /dist
-/test-build
-/graphics_cache
 /graphics
 /zones

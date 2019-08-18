@@ -22,9 +22,7 @@ function exportTexture(buf, fileName, out) {
   return new Promise((resolve, reject) => {
     if (buf.length > 0) {
       if (buf.readUInt16LE(0) !== 0x4D42) { // Is DDS
-        let verbose = false
-        if (fileName.indexOf('otplant1') !== -1) verbose = true
-        convertDDS2Jimp(buf, verbose).then(bmp => {
+        convertDDS2Jimp(buf).then(bmp => {
           processJimp(bmp, fileName, out).then(() => resolve())
         }).catch(err => {
           reject(new Error(err))

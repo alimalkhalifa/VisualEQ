@@ -2,8 +2,7 @@ const THREE = require('three')
 const jimp = require('jimp')
 const dxt = require('dxt-js')
 
-module.exports = function convertDDS2Jimp(buf, verbose = false) {
-  if (verbose) console.log('verbose')
+module.exports = function convertDDS2Jimp(buf) {
   return new Promise((resolve, reject) => {
     var loadMipmaps = false
     var dds = { mipmaps: [], width: 0, height: 0, format: null, mipmapCount: 1 };

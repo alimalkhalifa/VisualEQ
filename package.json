@@ -4,7 +4,7 @@
   "main": "src/server/index.js",
   "license": "MIT",
   "scripts": {
-    "start": "node src/server/index.js --experimental-worker",
+    "start": "node --experimental-worker src/server/index.js",
     "start:highmem": "node --experimental-worker --max-old-space-size=8192 src/server/index.js --highmem",
     "start:skipconvert": "node src/server/index.js --skip-convert",
     "build": "parcel build src/app/index.html",

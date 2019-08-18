@@ -11,10 +11,12 @@
     "dev": "yarn build && yarn start",
     "dev:skipconvert": "yarn build && yarn start:skipconvert",
     "nodemon": "nodemon -w src --ext js,html --exec yarn dev",
-    "nodemon:skipconvert": "nodemon -w src --ext js,html --exec yarn dev:skipconvert"
+    "nodemon:skipconvert": "nodemon -w src --ext js,html --exec yarn dev:skipconvert",
+    "nodemon:nobuild": "nodemon -w src --ext js,html --exec yarn start"
   },
   "dependencies": {
     "canvas": "^2.5.0",
+    "dxt-js": "^0.0.3",
     "express": "^4.17.1",
     "jimp": "^0.6.4",
     "mysql": "^2.17.1",

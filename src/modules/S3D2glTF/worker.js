@@ -1,4 +1,4 @@
-const {  workerData, parentPort } = require('worker_threads')
+const {  parentPort } = require('worker_threads')
 const THREE = require('three')
 const GLTFExporter = require('../GLTFExporter')
 const loadWLD = require('./loaders/wld')

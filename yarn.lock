@@ -2297,6 +2297,11 @@ duplexer2@~0.1.4:
   dependencies:
     readable-stream "^2.0.2"
 
+dxt-js@^0.0.3:
+  version "0.0.3"
+  resolved "https://registry.yarnpkg.com/dxt-js/-/dxt-js-0.0.3.tgz#7eccdc32a53f17b900a62686d3179e10b39a1ded"
+  integrity sha512-qNBx0i5/ICyNFO7rs5ZothChgfFD408dg/ZBBfWFXDy0xeDQ86t91QUZxj5WqeUzZQ/+PPtjTUC0w3mS+198jg==
+
 ecc-jsbn@~0.1.1:
   version "0.1.2"
   resolved "https://registry.yarnpkg.com/ecc-jsbn/-/ecc-jsbn-0.1.2.tgz#3a83a904e54353287874c564b7549386849a98c9"

@@ -14,5 +14,5 @@
 ## Run development server
 
 ```
-yarn dev
+yarn start
 ```

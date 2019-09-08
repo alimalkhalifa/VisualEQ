@@ -2,6 +2,10 @@ const THREE = require('three')
 const { Image } = require('canvas')
 
 module.exports = function loadMesh(fragment, wld, materialCache, imageCache, skeletonEntries = []) {
+  if (fragment.type !== "Mesh") {
+    console.log(fragment.type)
+    return
+  }
   fragment.textureListRef = wld[fragment.textureList]
   for (let t in fragment.polygonTextures) {
     fragment.polygonTextures[t].texture = wld[fragment.textureListRef.textureInfoRefsList[fragment.polygonTextures[t].textureIndex]]

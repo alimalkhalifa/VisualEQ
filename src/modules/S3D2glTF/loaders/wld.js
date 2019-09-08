@@ -1,4 +1,5 @@
 const { StringDecoder } = require('string_decoder')
+const {  parentPort } = require('worker_threads')
 
 module.exports = function loadWld(wld) {
   //console.log("Loading WLD")
@@ -76,6 +77,50 @@ module.exports = function loadWld(wld) {
         break
       case 0x05: // Texture Info Reference
         fragment[fragIndex] = {type: "TextureInfoRef", typeCode: fragType, name: fragName, textureInfo: buf.readUInt32LE(bodyCursor) - 1}
+        break
+      case 0x06: // 2D object
+        let object2DFlags = buf.readUInt32LE(bodyCursor)
+        let object2DParam3Exists = (object2DFlags & (1 << 0)) === (1 << 0)
+        let object2DParam4Exists = (object2DFlags & (1 << 1)) === (1 << 1)
+        let object2DParam5Exists = (object2DFlags & (1 << 2)) === (1 << 2)
+        let object2DParam6Exists = (object2DFlags & (1 << 3)) === (1 << 3)
+        let object2DParam2Exists = (object2DFlags & (1 << 7)) === (1 << 7)
+        bodyCursor += 4
+        let object2DSubSize1 = buf.readUInt32LE(bodyCursor)
+        bodyCursor += 4
+        let object2DSize1 = buf.readUInt32LE(bodyCursor)
+        bodyCursor += 4
+        let object2DParams1_1 = buf.readUInt32LE(bodyCursor)
+        bodyCursor += 4
+        let object2DParams1_2 = buf.readUInt32LE(bodyCursor)
+        bodyCursor += 4
+        bodyCursor += 4 // Skip Fragment
+        if (object2DParam2Exists) bodyCursor += 4 // Skip Params2
+        if (object2DParam3Exists) bodyCursor += 12 // Skip Params3
+        if (object2DParam4Exists) bodyCursor += 4 // Skip Params4
+        if (object2DParam5Exists) bodyCursor += 4 // Skip Params5
+        if (object2DParam6Exists) bodyCursor += 4 // Skip Params6
+        let object2DTextureRefs = []
+        for (let i = 0; i < object2DSize1; i++) {
+          let material = []
+          bodyCursor += 4 // Skip unneeded data
+          let object2DData6Size = buf.readUInt32LE(bodyCursor) & 0x7FFFFFFF
+          bodyCursor += 4
+          for (let s = 0; s < object2DData6Size; s++) {
+            let texture = []
+            bodyCursor += 4 // Skip unneeded data
+            for (let j = 0; j < object2DSubSize1; j++) {
+              texture.push(buf.readUInt32LE(bodyCursor))
+              bodyCursor += 4
+            }
+            material.push(texture)
+          }
+          object2DTextureRefs.push(material)
+        }
+        fragment[fragIndex] = {type: "Object2D", typeCode: fragType, name: fragName, textures: object2DTextureRefs}
+        break
+      case 0x07: // 2D object Ref
+        fragment[fragIndex] = {type: "Object2DRef", typeCode: fragType, name: fragName, Object2D: buf.readUInt32LE(bodyCursor) - 1}
         break
       case 0x09: // Camera Ref
         fragment[fragIndex] = {type: "CameraRef", typeCode: fragType, name: fragName, camera: buf.readUInt32LE(bodyCursor) - 1}
@@ -240,10 +285,16 @@ module.exports = function loadWld(wld) {
         let vertexColorRef = buf.readUInt32LE(bodyCursor) - 1
         fragment[fragIndex] = {type: "ObjectLocation", typeCode: fragType, name: fragName, ref: olRef, x: olX, y: olY, z: olZ, rotX: olRotX, rotY: olRotY, rotZ: olRotZ, scaleX: olScaleX, scaleY: olScaleY, vertexColorRef}
         break
-      case 0x2C: // Mesh Alternate
-        console.log("MESH 2C FOUND")
+      case 0x26: // ItemParticle
+        fragment[fragIndex] = {type: "ItemParticle", typeCode: fragType, name: fragName}
+        break
+      case 0x27: // ItemParticleRef
+        fragment[fragIndex] = {type: "ItemParticleRef", typeCode: fragType, name: fragName, ref: buf.readUInt32LE(bodyCursor) - 1}
+        break
+      case 0x2C: { // Mesh Alternate
         fragment[fragIndex] = {type: "MeshAlt", typeCode: fragType, name: fragName}
         break
+      }
       case 0x2D: // Mesh Reference
         fragment[fragIndex] = {type: "MeshRef", typeCode: fragType, name: fragName, mesh: buf.readUInt32LE(bodyCursor) - 1}
         break

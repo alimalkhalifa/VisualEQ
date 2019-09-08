@@ -2,7 +2,6 @@ import Scene from './editor-components/scene'
 import { store } from './store'
 import { changeZone } from './store/actions'
 
-store.subscribe(() => console.log(store.getState()))
 let zone = store.getState().zone
 
 //store.dispatch(addSpawn('test'))

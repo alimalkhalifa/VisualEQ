@@ -2,11 +2,11 @@ import * as THREE from 'three'
 import GLTFLoader from 'three-gltf-loader'
 import jimp from 'jimp'
 import { store } from '../store'
-import { changeScene } from '../store/actions'
+import { updatePosition, changeRenderer, changeScene } from '../store/actions'
 import FlyCamera from './flyCamera'
 import Selector from './selector'
-import InfoBox from './infoBox';
-import EventEmitter from 'events';
+import InfoBox from './infoBox'
+import EventEmitter from 'events'
 import raceCodes from '../../common/constants/raceCodeConstants.json'
 
 export default class Scene extends EventEmitter {
@@ -20,7 +20,6 @@ export default class Scene extends EventEmitter {
     this.clock = null
     this.raycaster = null
     this.zoneInfo = {}
-    this.renderer = null
     this.viewport = null
     this.loadingContainer = null
     this.material_cache = {}
@@ -53,24 +52,24 @@ export default class Scene extends EventEmitter {
     this.updateZoneInfo(true)
     this.updateZoneS3D()
 
-    this.renderer = new THREE.WebGLRenderer()
-    this.renderer.gammaOutput = true
-    this.renderer.gammaFactor = 2.2
-    this.viewport = document.getElementById('viewport')
-    this.renderer.setSize( this.viewport.clientWidth, this.viewport.clientHeight )
-    this.viewport.appendChild( this.renderer.domElement )
+    if (!store.getState().renderer) {
+      let renderer = new THREE.WebGLRenderer()
+      renderer.gammaOutput = true
+      renderer.gammaFactor = 2.2
+      this.viewport = document.getElementById('viewport')
+      renderer.setSize( this.viewport.clientWidth, this.viewport.clientHeight )
+      this.viewport.appendChild( renderer.domElement )
+      store.dispatch(changeRenderer(renderer))
+    }
     window.addEventListener('resize', this.onViewportResize)
     this.animate()
   }
 
   dispose() {
     window.removeEventListener('resize', this.onViewportResize)
-    this.infoBox.disconnect()
     this.camera.disconnect()
     this.selector.disconnect()
     this.scene.dispose()
-    this.viewport.removeChild( this.renderer.domElement )
-    this.renderer.dispose()
   }
 
   updateZoneInfo(goToHome = false) {
@@ -163,7 +162,7 @@ export default class Scene extends EventEmitter {
 
   render() {
     let delta = this.clock.getDelta()
-    this.renderer.render(this.scene, this.camera.object)
+    store.getState().renderer.render(this.scene, this.camera.object)
     for (let g of this.gifs) {
       g.currentTime += delta * 1000
       if (g.currentTime > g.frameTime) {
@@ -173,6 +172,7 @@ export default class Scene extends EventEmitter {
         g.texture.needsUpdate = true
       }
     }
+    store.dispatch(updatePosition(this.camera.object.position.toArray()))
     this.emit('render', [delta])
   }
 
@@ -267,6 +267,6 @@ export default class Scene extends EventEmitter {
   }
 
   onViewportResize() {
-    this.renderer.setSize( this.viewport.clientWidth, this.viewport.clientHeight )
+    store.getState().renderer.setSize( this.viewport.clientWidth, this.viewport.clientHeight )
   }
 }

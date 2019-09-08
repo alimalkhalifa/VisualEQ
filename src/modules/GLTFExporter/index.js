@@ -1,12 +1,13 @@
 var THREE = require( 'three' );
 var { Blob, FileReader } = require('vblob')
 var Canvas = require('canvas')
+var createCanvas = Canvas.createCanvas
 
 var window = {FileReader}
  var document = {
   createElement: (nodeName) => {
     if (nodeName !== 'canvas') throw new Error(`Cannot create node ${nodeName}`)
-    const canvas = new Canvas(256, 256)
+    const canvas = createCanvas(256, 256)
     // This isn't working — currently need to avoid toBlob(), so export to embedded .gltf not .glb.
     // canvas.toBlob = function () {
     //   return new Blob([this.toBuffer()]);

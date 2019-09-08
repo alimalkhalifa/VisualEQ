@@ -6,7 +6,11 @@ const loadMesh = require('./loaders/mesh')
 
 function convertS3D(s3dName, type, s3d, out) {
   if (type === "chr") {
-    out = 'graphics/characters'
+    if (s3dName.indexOf('gequip') !== -1) {
+      out = 'graphics/items'
+    } else {
+      out = 'graphics/characters'
+    }
   }
   switch(type) {
     case 'zone':
@@ -68,7 +72,7 @@ function convertZoneToglTF(zoneName, s3d, out) {
   const exporter = new GLTFExporter()
   exporter.parse(scene, gltf => {
     parentPort.postMessage({type: "file", out: `${out}/${zoneName}.glb`, data: Buffer.from(gltf)})
-    //fs.writeFileSync(`${out}/${zoneName}.glb`, JSON.stringify(gltf))
+    parentPort.postMessage({type: "done"})
   }, {
     embedImages: false,
     binary: true
@@ -101,6 +105,7 @@ function convertObjToglTFs(zoneName, s3d, out) {
       if (err) throw new Error(err)
     })*/
     parentPort.postMessage({type: "file", out: `${out}/${zoneName}_obj.glb`, data: Buffer.from(gltf)})
+    parentPort.postMessage({type: "done"})
   }, {
     embedImages: false,
     binary: true
@@ -110,47 +115,70 @@ function convertObjToglTFs(zoneName, s3d, out) {
 function convertChrToglTFs(zoneName, s3d, out) {
   //console.log(`Converting ${zoneName}_chr`)
   parentPort.postMessage({type: "log", message: `Converting ${zoneName}_chr`})
-  let wld = s3d.files[`${zoneName}_chr.wld`]
+  let wld = zoneName.indexOf('gequip') !== -1 ? s3d.files[`${zoneName}.wld`] : s3d.files[`${zoneName}_chr.wld`]
   let zone = loadWLD(wld)
+  let zoneKeys = Object.keys(zone)
   let materialCache = {}
   let imageCache = {}
+  let meshes = []
   for (let fragIndex in zone) {
     let fragment = zone[fragIndex]
+    let mesh0
     if (fragment.type === "StaticModelRef") {
       let raceCode = fragment.name.substr(0, fragment.name.indexOf('_'))
-      //console.log(`Loading ${raceCode}`)
-      let skeletonFragment = zone[zone[fragment.meshReferences[0]].skeletonTrack]
-      let entries = skeletonFragment ? skeletonFragment.entries : []
-      if (entries.length > 0) {
-        let stem = entries[0]
-        walkSkeleton(zone, entries, stem)
+      mesh0 = zone[fragment.meshReferences[0]]
+      let entries = []
+      if (mesh0.type === "SkeletonTrackRef") {
+        
       }
       let scene = new THREE.Scene()
-      let group = new THREE.Group()
-      group.name = raceCode
-      for (let fragIndex2 in zone) {
-        let f = zone[fragIndex2]
-        if (f && f.type === "Mesh" && f.name.indexOf(raceCode) !== -1) {
-          let helmchr = f.name.substr(3, f.name.indexOf('_') - 3)
-          let helm = helmchr.length == 0 ? "BASE" : helmchr.indexOf("HE") !== -1 ? helmchr : `BO${helmchr}`
-          let mesh =  loadMesh(f, zone, materialCache, imageCache, entries)
-          mesh.userData.helm = helm
-          group.add(mesh)
+      if (mesh0.type === "SkeletonTrackRef") {
+        let skeletonFragment = zone[fragment.meshReferences[0]] && zone[fragment.meshReferences[0]].skeletonTrack && zone[zone[fragment.meshReferences[0]].skeletonTrack]
+        entries = skeletonFragment && skeletonFragment.entries
+        if (entries.length > 0) {
+          let stem = entries[0]
+          walkSkeleton(zone, entries, stem)
         }
+        let group = new THREE.Group()
+        group.name = raceCode
+        let rootName =  zone[mesh0.skeletonTrack].name.substr(0, zone[mesh0.skeletonTrack].name.indexOf('_'))
+        for (let fragIndex2 in zone) {
+          let f = zone[fragIndex2]
+          if (f && f.type === "Mesh" && meshes.indexOf(f) === -1) meshes.push(f) // debug
+          if (f && f.type === "Mesh" && (f.name.indexOf(raceCode) !== -1 || f.name.indexOf(rootName) !== -1)) {
+            let helmchr = f.name.substr(3, f.name.indexOf('_') - 3)
+            let helm = helmchr.length == 0 ? "BASE" : helmchr.indexOf("HE") !== -1 ? helmchr : `BO${helmchr}`
+            let mesh =  loadMesh(f, zone, materialCache, imageCache, entries)
+            mesh.userData.helm = helm
+            group.add(mesh)
+          }
+        }
+        scene.add(group)
+      } else if (mesh0.type === "MeshRef") {
+        let mesh = loadMesh(zone[mesh0.mesh], zone, materialCache, imageCache)
+        scene.add(mesh)
       }
-      scene.add(group)
       const exporter = new GLTFExporter()
       exporter.parse(scene, gltf => {
-        /*fs.writeFile(`${out}/${raceCode}.glb`, Buffer.from(gltf), err => {
-          if (err) throw new Error(err)
-        })*/
-        parentPort.postMessage({type: "file", out: `${out}/${raceCode}.glb`, data: Buffer.from(gltf)})
+        if (!(gltf instanceof ArrayBuffer)) {
+          parentPort.postMessage({type: "skip", name: raceCode})
+        } else {
+          let data
+          try {
+            data = Buffer.from(gltf)
+          } catch(err) {
+            throw new Error(err)
+          }
+          parentPort.postMessage({type: "file", out: `${out}/${raceCode}.glb`, data })
+        }
+        if (fragIndex === zoneKeys[zoneKeys.length-1]) parentPort.postMessage({type: "done"})
       }, {
         embedImages: false,
         binary: true
       })
     }
   }
+  parentPort.postMessage({type: "done"})
 }
 
 function walkSkeleton(chr, entries, bone, parentShift = new THREE.Vector3(), parentRot = new THREE.Euler(0, 0, 0, 'YXZ')) {

@@ -46,7 +46,7 @@ export default class Selector {
   }
 
   onMouseDown() {
-    if ( event.target !== store.getState().scene.renderer.domElement ) return
+    if ( event.target !== store.getState().renderer.domElement ) return
     if ( this.mouseDown ) return
     if (event.button !== 0) return
     this.mouseDown = true
@@ -141,7 +141,7 @@ export default class Selector {
   }
 
   onEndMouseDown(event) {
-    if ( event.target !== store.getState().scene.renderer.domElement ) return
+    if ( event.target !== store.getState().renderer.domElement ) return
     if (!this.mouseDown) return
     this.mouseDown = false
     if (event.button === 0) {

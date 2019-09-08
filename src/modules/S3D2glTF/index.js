@@ -14,9 +14,15 @@ worker.on('message', message => {
     fs.writeFile(message.out, message.data, err => {
       if (err) throw new Error(err)
     })
-    busy = false
+  }
+  else if (message.type === "skip") {
+    console.log(`Skipping ${message.name}`)
   }
   else if (message.type === "error") throw new Error(err)
+  else if (message.type === "done") {
+    console.log('Done')
+    busy = false
+  }
 })
 worker.on('error', (err) => {
   throw new Error(err)
@@ -43,11 +49,15 @@ function convertDir(dir, out) {
       let s3dName = path.basename(file)
       s3dName = s3dName.indexOf('_') !== -1 ? s3dName.substr(0,s3dName.indexOf('_')) : s3dName.substr(0,s3dName.indexOf('.'))
       let type = 'zone'
-      if (file.indexOf('_chr') !== -1) type = 'chr'
+      if (file.indexOf('_chr') !== -1 || file.indexOf('equip') !== -1) type = 'chr'
       else if (file.indexOf('_obj') !== -1) type = 'obj'
       let outdir
       if (type === "chr") {
-        outdir = 'graphics/characters'
+        if (s3dName.indexOf('gequip') !== -1) {
+          outdir = 'graphics/items'
+        } else {
+          outdir = 'graphics/characters'
+        }
       } else {
         outdir = path.join(out,s3dName)
       }
@@ -57,7 +67,7 @@ function convertDir(dir, out) {
         console.error('out dir not found')
         fs.mkdirSync(outdir)
       }
-      let s3d = loadS3D(path.join(dir, file))
+      let s3d = loadS3D(path.join(dir, file), file === 'gequip.s3d')
       await extractTextures(s3dName, type, s3d, outdir).then(value => {
         console.log('done extracting textures')
       })

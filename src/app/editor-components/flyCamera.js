@@ -90,7 +90,7 @@ export default class Camera {
   }
 
   onMouseDown(event) {
-    if ( event.target !== store.getState().scene.renderer.domElement ) {
+    if ( event.target !== store.getState().renderer.domElement ) {
       return
     }
     if (event.button !== 2) return
@@ -123,7 +123,7 @@ export default class Camera {
   }
 
   onPointerLockChange(_) {
-    let renderer = store.getState().scene.renderer.domElement
+    let renderer = store.getState().renderer.domElement
     if (document.pointerLockElement === renderer || document.mozPointerLockElement === renderer) {
       this.mouseLocked = true
     } else {
@@ -132,7 +132,7 @@ export default class Camera {
   }
 
   lockPointer() {
-    store.getState().scene.renderer.domElement.requestPointerLock()
+    store.getState().renderer.domElement.requestPointerLock()
   }
 
   unlockPointer() {

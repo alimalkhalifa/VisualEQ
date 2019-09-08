@@ -1,11 +1,29 @@
 import {
+  UPDATE_POSITION,
   ADD_SPAWN,
   CHANGE_SCENE,
   UPDATE_SELECTED,
   MOVE_OBJECT,
   MOVE_UNDO,
-  CHANGE_ZONE
+  CHANGE_ZONE,
+  CHANGE_RENDERER
 } from './actionTypes'
+
+export function updatePosition(pos) {
+  return {
+    type: UPDATE_POSITION,
+    x: pos[0],
+    y: pos[1],
+    z: pos[2]
+  }
+}
+
+export function changeRenderer(renderer) {
+  return {
+    type: CHANGE_RENDERER,
+    renderer
+  }
+}
 
 export function addSpawn(spawn) {
   return {

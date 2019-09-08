@@ -9,6 +9,7 @@
     "start:noclient": "node --experimental-worker src/server/index.js --no-client",
     "build": "parcel build src/app/index.html",
     "build:watch": "parcel watch src/app/index.html",
+    "build:serve": "parcel serve src/app/index.html",
     "dev": "yarn build && yarn start",
     "dev:skipconvert": "yarn build && yarn start:skipconvert",
     "nodemon": "nodemon -w src --ext js,html --exec yarn dev",
@@ -17,6 +18,8 @@
     "nodemon:noclient": "nodemon -w src --ext js,html --exec yarn start:noclient"
   },
   "dependencies": {
+    "babel-preset-env": "^1.7.0",
+    "babel-preset-react": "^6.24.1",
     "canvas": "^2.5.0",
     "dxt-js": "^0.0.3",
     "express": "^4.17.1",
@@ -24,6 +27,10 @@
     "mysql": "^2.17.1",
     "pako": "^1.0.10",
     "parcel": "^1.12.3",
+    "parcel-bundler": "^1.12.3",
+    "react": "^16.9.0",
+    "react-dom": "^16.9.0",
+    "react-redux": "^7.1.0",
     "redux": "^4.0.4",
     "three": "^0.106.2",
     "three-gltf-loader": "^1.107.0",

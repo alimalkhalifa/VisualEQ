@@ -2,7 +2,7 @@ const fs = require('fs')
 const zlib = require('pako')
 const { StringDecoder } = require('string_decoder')
 
-module.exports = function(filePath) {
+module.exports = function(filePath, gequipHack) {
   try {
     let file = fs.readFileSync(filePath)
     let buf = Buffer.from(file)
@@ -53,7 +53,7 @@ module.exports = function(filePath) {
     let dirCursor = 0
     let dirlen = dirbuf.readUInt32LE(dirCursor)
     dirCursor += 4
-    if ( dirlen !== fileList.length ) {
+    if ( (gequipHack && dirlen !== fileList.length + 1) || (!gequipHack && dirlen !== fileList.length )) {
       throw new Error("S3D Corrupt, directory does not match file length")
     }
     let files = {}
@@ -63,7 +63,9 @@ module.exports = function(filePath) {
       let fileName = new StringDecoder().write(dirbuf.slice(dirCursor, dirCursor + fileNameLength)).trim()
       fileName = fileName.slice(0, fileName.length - 1)
       dirCursor += fileNameLength
-      files[fileName] = f.data
+      if (!gequipHack || fileName !== 'trace.dbg') {
+        files[fileName] = f.data
+      }
     }
     return {
       directory,

@@ -1,4 +1,9 @@
-import { store } from "../store";
+import { store } from "../../store";
+import React from 'react'
+import ReactDOM from 'react-dom'
+import { Provider } from 'react-redux'
+import './infoBox.css'
+import App from './components/App'
 
 export default class InfoBox {
   constructor() {
@@ -7,15 +12,12 @@ export default class InfoBox {
   }
 
   connect() {
-    this.unsubscribe = store.subscribe(() => this.updateInfoBox())
-  }
-
-  disconnect() {
-    this.unsubscribe()
+    //this.unsubscribe = store.subscribe(() => this.updateInfoBox())
+    ReactDOM.render(<Provider store={store}><App /></Provider>, this.domElement)
   }
 
   updateInfoBox() {
-    let selected = store.getState().selected
+    /*let selected = store.getState().selected
     if (selected === null) {
       this.emptyInfo()
       return
@@ -26,11 +28,12 @@ export default class InfoBox {
         break
       default:
         this.emptyInfo()
-    }
+    }*/
   }
 
   emptyInfo() {
-    this.domElement.innerText = `Empty`
+    this.domElement.innerHTML = `Empty`
+    //npcViewer()
   }
 
   spawnPointInfo(object) {

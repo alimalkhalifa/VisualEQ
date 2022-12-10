@@ -22,7 +22,7 @@
     "babel-preset-react": "^6.24.1",
     "canvas": "^2.5.0",
     "dxt-js": "^0.0.3",
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "jimp": "^0.6.4",
     "mysql": "^2.17.1",
     "pako": "^1.0.10",
